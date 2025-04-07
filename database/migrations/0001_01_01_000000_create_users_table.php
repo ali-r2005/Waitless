@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->enum('role', ['system_admin', 'business_admin', 'staff', 'customer']);
+            $table->foreignId('business_id')->nullable()->constrained(); // Only for Business Admins & Staff
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
