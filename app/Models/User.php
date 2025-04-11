@@ -21,9 +21,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
-        'role',
-        'business_id'
+        'role'  
     ];
 
     /**
@@ -48,12 +48,10 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    public function business()
-    {
-        return $this->belongsTo(Business::class);
-    }
     public function staff(){
+
     return $this->hasOne(Staff::class);
+    
 }
 
 }

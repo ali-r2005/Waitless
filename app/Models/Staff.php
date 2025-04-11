@@ -7,14 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Staff extends Model
 {
-    use HasFactory;
+    protected $fillable = ['user_id','business_id','branch_id','role_id'];
 
-    protected $fillable = [
-        'user_id',
-        'business_id',
-        'phone_number',        
-        'role_id'    
-    ];
+    protected $with = ['user','business','branch','role'];
 
     public function user()
     {
@@ -24,6 +19,11 @@ class Staff extends Model
     public function business()
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function role()
