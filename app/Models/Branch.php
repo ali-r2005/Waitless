@@ -12,6 +12,16 @@ class Branch extends Model
     {
         return $this->belongsTo(Business::class);
     }
+    
+    public function parent()
+    {
+        return $this->belongsTo(Branch::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Branch::class, 'parent_id');
+    }
 
     public function users()
     {

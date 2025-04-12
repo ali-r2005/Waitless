@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\BranchController;
+
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -18,6 +20,11 @@ Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_man
 Route::get('/branch-managers', [StaffController::class, 'branch_manager_list'])->middleware('auth:sanctum');
 Route::delete('/branch-managers/{user}', [StaffController::class, 'branch_manager_destroy'])->middleware('auth:sanctum');
 
-
+// Branches
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::apiResource('branches', BranchController::class);
+    Route::get('/branches/{branch}/hierarchy', [BranchController::class, 'hierarchy']);
+    Route::post('/branches/{branch}/move-sub-branches', [BranchController::class, 'moveSubBranches']);
+});
 
 require __DIR__.'/auth.php';
