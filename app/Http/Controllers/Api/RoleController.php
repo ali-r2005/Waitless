@@ -5,46 +5,181 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class RoleController extends Controller
 {
+    /**
+     * Display a listing of roles.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index()
     {
-        return Role::with('business')->get();
+        try {
+            $roles = Role::with('business')->get();
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $roles
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch roles: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve roles'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
+    /**
+     * Store a newly created role.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => 'required|string',
-            'business_id' => 'required|exists:businesses,id',
-        ]);
+        try {
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'business_id' => 'required|exists:businesses,id',
+            ]);
 
-        return Role::create($data);
+            $role = Role::create($data);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Role created successfully',
+                'data' => $role->load('business')
+            ], Response::HTTP_CREATED);
+            
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            
+        } catch (\Exception $e) {
+            Log::error('Role creation failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to create role'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function show($id)
+    /**
+     * Display the specified role.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show(Request $request, Role $role)
     {
-        return Role::with('business')->findOrFail($id);
+        try {            
+            return response()->json([
+                'status' => 'success',
+                'data' => $role
+            ], Response::HTTP_OK);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Role not found'
+            ], Response::HTTP_NOT_FOUND);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch role: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve role'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Update the specified role.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update(Request $request, Role $role)
     {
-        $role = Role::findOrFail($id);
+        try {
+            $data = $request->validate([
+                'name' => 'string|max:255',
+                'business_id' => 'sometimes|exists:businesses,id',
+            ]);
 
-        $data = $request->validate([
-            'name' => 'string',
-        ]);
+            $role->update($data);
 
-        $role->update($data);
-
-        return $role;
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Role updated successfully',
+                'data' => $role->fresh('business')
+            ], Response::HTTP_OK);
+            
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Role not found'
+            ], Response::HTTP_NOT_FOUND);
+            
+        } catch (\Exception $e) {
+            Log::error('Role update failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update role'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function destroy($id)
+    /**
+     * Remove the specified role.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy(Request $request, Role $role)
     {
-        Role::findOrFail($id)->delete();
+        try {
+            $role->delete();
 
-        return response()->json(['message' => 'Role deleted']);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Role deleted successfully'
+            ], Response::HTTP_OK);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Role not found'
+            ], Response::HTTP_NOT_FOUND);
+            
+        } catch (\Exception $e) {
+            Log::error('Role deletion failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete role'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }
