@@ -16,7 +16,9 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('phone')->nullable();
-            $table->enum('role', ['system_admin', 'business_owner', 'branch_manager', 'staff', 'customer']);
+            $table->enum('role', ['system_admin', 'business_owner', 'branch_manager', 'staff', 'customer','guest'])->default('guest');
+            $table->foreignId('branch_id')->nullable()->constrained()->onDelete('cascade');
+            $table->foreignId('business_id')->nullable()->constrained()->onDelete('cascade');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
