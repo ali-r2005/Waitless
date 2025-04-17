@@ -270,7 +270,7 @@ class BranchController extends Controller
             }
             
             // Check if branch has staff or users assigned
-            if ($branch->staff()->count() > 0 || $branch->users()->count() > 0) {
+            if ($branch->users()->count() > 0) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Cannot delete branch with assigned users or staff. Reassign them first.'
