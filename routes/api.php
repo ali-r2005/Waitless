@@ -13,18 +13,24 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 // Roles
 Route::apiResource('roles', RoleController::class);
 
-// Staff
-Route::get('/users/search', [StaffController::class, 'search']);
-Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
-Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_manager'])->middleware('auth:sanctum');
-Route::get('/branch-managers', [StaffController::class, 'branch_manager_list'])->middleware('auth:sanctum');
-Route::delete('/branch-managers/{user}', [StaffController::class, 'branch_manager_destroy'])->middleware('auth:sanctum');
-
-// Branches
-Route::middleware(['auth:sanctum'])->group(function () {
+// Routes accessible to business owners
+Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
+    // Branch management
     Route::apiResource('branches', BranchController::class);
     Route::get('/branches/{branch}/hierarchy', [BranchController::class, 'hierarchy']);
     Route::post('/branches/{branch}/move-sub-branches', [BranchController::class, 'moveSubBranches']);
+    
+    // Staff management for business owners
+    Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_manager']);
+    Route::get('/branch-managers', [StaffController::class, 'branch_manager_list']);
+    Route::delete('/branch-managers/{user}', [StaffController::class, 'branch_manager_destroy']);
+});
+
+// Routes accessible to branch managers
+Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group(function () {
+    // Limited staff management for branch managers
+    Route::get('/users/search', [StaffController::class, 'search']);
+    Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
 });
 
 require __DIR__.'/auth.php';
