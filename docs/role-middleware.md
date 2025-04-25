@@ -36,22 +36,21 @@ Route::middleware(['auth:sanctum', 'role:business_owner,system_admin'])->group(f
 
 ## Role-Based Access Rules
 
-### Business Owner & System Admin Access
+### Business Owner Access
 
-Business owners and system admins have access to:
+Business owners have access to:
 
 - All branch management endpoints (`/branches/*`)
 - Branch hierarchy management
 - Full staff management capabilities
+- All queues across their entire business
 
 ```php
-Route::middleware(['auth:sanctum', 'role:business_owner,system_admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
     Route::apiResource('branches', BranchController::class);
     Route::get('/branches/{branch}/hierarchy', [BranchController::class, 'hierarchy']);
     Route::post('/branches/{branch}/move-sub-branches', [BranchController::class, 'moveSubBranches']);
     
-    Route::get('/users/search', [StaffController::class, 'search']);
-    Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
     Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_manager']);
     Route::get('/branch-managers', [StaffController::class, 'branch_manager_list']);
     Route::delete('/branch-managers/{user}', [StaffController::class, 'branch_manager_destroy']);
@@ -60,17 +59,41 @@ Route::middleware(['auth:sanctum', 'role:business_owner,system_admin'])->group(f
 
 ### Branch Manager Access
 
-Branch managers have limited access to:
+Branch managers have access to:
 
 - User search functionality
 - Adding users to staff
+- All queues within their branch
 
 ```php
-Route::middleware(['auth:sanctum', 'role:branch_manager,system_admin'])->group(function () {
-    Route::get('/branch-manager/users/search', [StaffController::class, 'search']);
-    Route::post('/branch-manager/users/{user}/add-to-staff', [StaffController::class, 'store']);
+Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group(function () {
+    Route::get('/users/search', [StaffController::class, 'search']);
+    Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
 });
 ```
+
+### Staff Access
+
+Staff members have limited access to:
+
+- Queues they have created
+
+### Queue Management
+
+Access to queue resources is controlled at two levels:
+
+1. **Route Level**: Using middleware to restrict access by role
+   ```php
+   Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner,system_admin'])->group(function () {
+       Route::apiResource('queues', QueueController::class);
+   });
+   ```
+
+2. **Controller Level**: Additional filtering based on role
+   - Staff: Can only manage their own queues
+   - Branch Manager: Can manage queues within their branch
+   - Business Owner: Can manage queues across their entire business
+   - System Admin: Can manage all queues
 
 ## Extending Role-Based Access
 

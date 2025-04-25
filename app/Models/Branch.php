@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Queue;
 
 class Branch extends Model
 {
@@ -31,5 +32,10 @@ class Branch extends Model
     public function staff()
     {
         return $this->hasMany(Staff::class);
+    }
+
+    public function queues()
+    {
+        return $this->hasMany(Queue::class);
     }
 }

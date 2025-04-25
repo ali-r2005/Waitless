@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\QueueController;
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
@@ -31,6 +32,11 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
     // Limited staff management for branch managers
     Route::get('/users/search', [StaffController::class, 'search']);
     Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
+});
+
+// Queue routes - accessible based on role
+Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])->group(function () {
+    Route::apiResource('queues', QueueController::class);
 });
 
 require __DIR__.'/auth.php';
