@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Branch;
 use App\Models\Staff;
+use App\Models\QueueUser;
+use App\Models\LatecomerQueue;
 
 class Queue extends Model
 {
@@ -31,7 +33,12 @@ class Queue extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class);
+        return $this->belongsToMany(User::class)->using(QueueUser::class);
+    }
+
+    public function latecomerQueues()
+    {
+        return $this->hasOne(LatecomerQueue::class);
     }
 
     

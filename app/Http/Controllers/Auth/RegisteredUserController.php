@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Business;
+use App\Models\Branch;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -88,6 +89,11 @@ class RegisteredUserController extends Controller
                         'name' => $validatedData['business_name'],
                         'industry' => $validatedData['industry'],
                         'logo' => $logoPath,
+                    ]);
+                    // Create main branch for business
+                    $mainBranch = Branch::create([
+                        'name' => $validatedData['business_name'],
+                        'business_id' => $business->id,
                     ]);
                     
                     // Associate business with user

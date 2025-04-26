@@ -8,6 +8,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Queue;
+use App\Models\Business;
+use App\Models\Branch;
+use App\Models\Staff;
+use App\Models\LatecomerQueue;
+use App\Models\QueueUser;
+use App\Models\LatecomerQueueUser;
+
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -68,6 +75,11 @@ class User extends Authenticatable
     public function queues()
     {
         return $this->belongsToMany(Queue::class)->using(QueueUser::class);
+    }
+
+    public function latecomerQueues()
+    {
+        return $this->belongsToMany(LatecomerQueue::class)->using(LatecomerQueueUser::class);
     }
 
 }

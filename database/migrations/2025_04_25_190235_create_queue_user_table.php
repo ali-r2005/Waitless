@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('queue_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('status', ['waiting', 'notified', 'served', 'skipped'])->default('waiting');
-            $table->timestamp('joined_at')->useCurrent();
-            $table->timestamp('notified_at')->nullable();
+            $table->enum('status', ['waiting','completed','cancelled','late'])->default('waiting');
             $table->timestamp('served_at')->nullable();
+            $table->timestamp('completed_at')->nullable();
+            $table->timestamp('cancelled_at')->nullable();
+            $table->timestamp('late_at')->nullable();
             $table->timestamps();
         });
     }
