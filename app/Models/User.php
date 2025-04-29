@@ -14,7 +14,7 @@ use App\Models\Staff;
 use App\Models\LatecomerQueue;
 use App\Models\QueueUser;
 use App\Models\LatecomerQueueUser;
-
+use App\Models\ServedCustomer;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -80,6 +80,11 @@ class User extends Authenticatable
     public function latecomerQueues()
     {
         return $this->belongsToMany(LatecomerQueue::class)->using(LatecomerQueueUser::class);
+    }
+
+    public function servedCustomers()
+    {
+        return $this->hasMany(ServedCustomer::class);
     }
 
 }

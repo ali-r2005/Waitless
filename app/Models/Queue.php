@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Staff;
 use App\Models\QueueUser;
 use App\Models\LatecomerQueue;
+use App\Models\ServedCustomer;
 
 class Queue extends Model
 {
@@ -26,6 +27,11 @@ class Queue extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    public function servedCustomers()
+    {
+        return $this->hasMany(ServedCustomer::class);
+    }
+
     public function staff()
     {
         return $this->belongsTo(Staff::class);
@@ -36,7 +42,7 @@ class Queue extends Model
         return $this->belongsToMany(User::class)->using(QueueUser::class);
     }
 
-    public function latecomerQueues()
+    public function latecomerQueue()
     {
         return $this->hasOne(LatecomerQueue::class);
     }

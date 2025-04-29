@@ -11,15 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('queue_user', function (Blueprint $table) {
+        Schema::create('served_customers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('queue_id')->constrained()->onDelete('cascade');
+            $table->foreignId('queue_id')->constrained()->onDelete('set null');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->integer('position')->nullable();
-            $table->enum('status', ['waiting','late','serving'])->default('waiting');
-            $table->string('ticket_number')->nullable();
-            $table->timestamp('served_at')->nullable();
-            $table->timestamp('late_at')->nullable();
+            $table->integer('waiting_time');
             $table->timestamps();
         });
     }
@@ -29,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('queue_user');
+        Schema::dropIfExists('served_customers');
     }
 };

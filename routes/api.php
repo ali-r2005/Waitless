@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\QueueController;
+use App\Http\Controllers\Api\QueueManager;
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
@@ -37,6 +38,30 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
 // Queue routes - accessible based on role
 Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])->group(function () {
     Route::apiResource('queues', QueueController::class);
+    
+    // Queue Management routes
+    Route::prefix('queue-management')->group(function () {
+        // Search users
+        Route::get('/search', [QueueManager::class, 'search']);
+        
+        // Customer queue operations
+        Route::post('/add-customer', [QueueManager::class, 'addCustomerToQueue']);
+        Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
+        Route::get('/customers', [QueueManager::class, 'getQueueCustomers']);
+        
+        // Queue operations
+        Route::post('/activate', [QueueManager::class, 'activateQueue']);
+        Route::post('/call-next', [QueueManager::class, 'callNextCustomer']);
+        Route::post('/complete-serving', [QueueManager::class, 'completeServing']);
+        
+        // Customer position management
+        Route::patch('/customers/{id}/move', [QueueManager::class, 'move']);
+        Route::post('/customers/reinsert', [QueueManager::class, 'reinsertCustomer']);
+        
+        // Late customer management
+        Route::post('/customers/late', [QueueManager::class, 'lateCustomer']);
+        Route::get('/customers/late', [QueueManager::class, 'getLateCustomers']);
+    });
 });
 
 require __DIR__.'/auth.php';

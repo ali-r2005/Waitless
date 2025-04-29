@@ -11,6 +11,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Models\LatecomerQueue;
 
 class QueueController extends Controller
 {
@@ -82,10 +83,11 @@ class QueueController extends Controller
             }
             
             $queues = $query->with(['branch', 'staff'])->get();
-            
+            $latecomerQueues = LatecomerQueue::all();
             return response()->json([
                 'status' => 'success',
-                'data' => $queues
+                'data' => $queues,
+                'latecomer_queues' => $latecomerQueues
             ], Response::HTTP_OK);
             
         } catch (\Exception $e) {
@@ -145,7 +147,7 @@ class QueueController extends Controller
             }
             
             $queue = Queue::create($validatedData);
-            
+            $latecomerQueue = LatecomerQueue::create(['queue_id' => $queue->id]);
             return response()->json([
                 'status' => 'success',
                 'message' => 'Queue created successfully',
@@ -229,7 +231,8 @@ class QueueController extends Controller
             
             return response()->json([
                 'status' => 'success',
-                'data' => $queue
+                'data' => $queue,
+                'latecomer_queues' => $queue->latecomerQueue
             ], Response::HTTP_OK);
             
         } catch (\Exception $e) {

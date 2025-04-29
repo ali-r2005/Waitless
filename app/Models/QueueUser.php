@@ -12,9 +12,10 @@ class QueueUser extends Pivot
         'queue_id',
         'user_id',
         'status',
-        'joined_at',
-        'notified_at',
-        'served_at'
+        'ticket_number',
+        'served_at',
+        'late_at',
+        'position'
     ];
     
 }
