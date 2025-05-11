@@ -22,20 +22,7 @@ class BranchController extends Controller
     public function index(Request $request)
     {
         try {
-            // Get only root branches (no parent) by default
-            $query = Branch::query();
-            
-            // Filter by business_id if provided
-            if ($request->has('business_id')) {
-                $query->where('business_id', $request->business_id);
-            }
-            
-            // Filter by parent_id if provided (including null for root branches)
-            if ($request->has('parent_id')) {
-                $query->where('parent_id', $request->parent_id);
-            }
-            
-            $branches = $query->get();
+            $branches = Branch::where('business_id', Auth::user()->business_id)->get();
             
             return response()->json([
                 'status' => 'success',
@@ -64,9 +51,9 @@ class BranchController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'address' => 'required|string|max:255',
-                'business_id' => 'required|exists:businesses,id',
                 'parent_id' => 'nullable|exists:branches,id',
             ]);
+            $validatedData['business_id'] = Auth::user()->business_id;
 
             // Verify the user has permission to add branches to this business
             if (Auth::user()->business_id != $validatedData['business_id'] ) {
@@ -310,13 +297,6 @@ class BranchController extends Controller
                 'branch_ids.*' => 'required|exists:branches,id',
             ]);
             
-            // Verify user has permission to update these branches
-            if (Auth::user()->business_id != $branch->business_id && Auth::user()->role !== 'admin') {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Unauthorized to move sub-branches'
-                ], Response::HTTP_FORBIDDEN);
-            }
             
             $targetBranch = Branch::find($validatedData['target_branch_id']);
             

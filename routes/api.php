@@ -6,7 +6,8 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\QueueController;
-use App\Http\Controllers\Api\QueueManager;
+use App\Http\Controllers\QueueManager; 
+use App\Http\Controllers\BusinessController;
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
@@ -37,6 +38,7 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
 
 // Queue routes - accessible based on role
 Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])->group(function () {
+    Route::get('business', [BusinessController::class, 'index']);
     Route::apiResource('queues', QueueController::class);
     
     // Queue Management routes

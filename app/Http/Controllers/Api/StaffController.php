@@ -65,7 +65,6 @@ class StaffController extends Controller
             $validateData = $request->validate([
                 'role_id' => 'required|exists:roles,id',
                 'branch_id' => 'required|exists:branches,id',
-                'business_id' => 'required|exists:businesses,id',
             ]);
             if ($user->role === 'staff') {
                 return response()->json([
@@ -73,8 +72,9 @@ class StaffController extends Controller
                     'message' => 'User is already staff'
                 ], Response::HTTP_BAD_REQUEST);
             }
-            
-            $user->update(['role' => 'staff','branch_id' => $validateData['branch_id'],'business_id' => $validateData['business_id']]);
+
+            $business_id = Auth::user()->business_id;            
+            $user->update(['role' => 'staff','branch_id' => $validateData['branch_id'],'business_id' => $business_id]);
 
             $staff = $user->staff()->create([
                 'role_id' => $validateData['role_id'],
