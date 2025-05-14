@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,14 @@ class RoleController extends Controller
     public function index()
     {
         try {
-            $roles = Role::with('business')->get();
+            $buisinessId = Auth::user()->business_id;
+            $roles = Role::where('business_id', $buisinessId)->get();
+            if ($roles->isEmpty()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No roles found'
+                ], Response::HTTP_NOT_FOUND);
+            }
             
             return response()->json([
                 'status' => 'success',
@@ -47,15 +55,14 @@ class RoleController extends Controller
         try {
             $data = $request->validate([
                 'name' => 'required|string|max:255',
-                'business_id' => 'required|exists:businesses,id',
             ]);
-
+            $data['business_id'] = Auth::user()->business_id;
             $role = Role::create($data);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Role created successfully',
-                'data' => $role->load('business')
+                'data' => $role
             ], Response::HTTP_CREATED);
             
         } catch (ValidationException $e) {
@@ -117,15 +124,15 @@ class RoleController extends Controller
         try {
             $data = $request->validate([
                 'name' => 'string|max:255',
-                'business_id' => 'sometimes|exists:businesses,id',
             ]);
+            $data['business_id'] = Auth::user()->business_id;
 
             $role->update($data);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Role updated successfully',
-                'data' => $role->fresh('business')
+                'data' => $role
             ], Response::HTTP_OK);
             
         } catch (ValidationException $e) {

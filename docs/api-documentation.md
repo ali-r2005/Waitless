@@ -85,13 +85,13 @@ The API implements role-based access control with the following roles:
 
 ### Staff Management
 
-#### Search Users
+/////#### Search Users
 - **GET** `/api/users/search?name={name}`
 - **Access**: branch_manager, business_owner
 - **Description**: Search for users to add as staff
 - **Response**: Array of matching users
 
-#### Add User to Staff
+/////#### Add User to Staff
 - **POST** `/api/users/{user}/add-to-staff`
 - **Access**: branch_manager, business_owner
 - **Request Body**:
@@ -104,34 +104,34 @@ The API implements role-based access control with the following roles:
   ```
 - **Response**: Created staff record
 
-#### Remove User from Staff
+////#### Remove User from Staff
 - **DELETE** `/api/users/{user}/remove-from-staff`
 - **Access**: branch_manager, business_owner
 - **Response**: Success message
 
-#### Assign Branch Manager
+///#### Assign Branch Manager
 - **POST** `/api/users/{user}/branch-manager`
 - **Access**: business_owner
 - **Response**: Success message
 
-#### List Branch Managers
+////#### List Branch Managers
 - **GET** `/api/branch-managers`
 - **Access**: business_owner
 - **Response**: Array of branch managers
 
-#### Remove Branch Manager
+///#### Remove Branch Manager
 - **DELETE** `/api/branch-managers/{user}`
 - **Access**: business_owner
 - **Response**: Success message
 
 ### Role Management
 
-#### List Roles
+////#### List Roles
 - **GET** `/api/roles`
 - **Access**: business_owner
 - **Response**: Array of role objects
 
-#### Create Role
+////#### Create Role
 - **POST** `/api/roles`
 - **Access**: business_owner
 - **Request Body**:
@@ -143,7 +143,7 @@ The API implements role-based access control with the following roles:
   ```
 - **Response**: Created role object
 
-#### Update Role
+////#### Update Role
 - **PUT** `/api/roles/{role}`
 - **Access**: business_owner
 - **Request Body**:
@@ -155,7 +155,7 @@ The API implements role-based access control with the following roles:
   ```
 - **Response**: Updated role object
 
-#### Delete Role
+/////#### Delete Role
 - **DELETE** `/api/roles/{role}`
 - **Access**: business_owner
 - **Response**: Success message

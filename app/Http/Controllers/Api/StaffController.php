@@ -15,6 +15,69 @@ use Illuminate\Validation\ValidationException;
 class StaffController extends Controller
 {
     /**
+     * Display a listing of the staff.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function index()
+    {
+        try {
+            $business_id = Auth::user()->business_id;
+            $staff = User::where('role', 'staff')
+                ->where('business_id', $business_id)
+                ->with('staff')
+                ->get();
+                
+            return response()->json([
+                'status' => 'success',
+                'data' => $staff
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Staff listing failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve staff'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    /**
+     * Display the specified staff member.
+     *
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function show(User $user)
+    {
+        try {
+            $staff = User::where('id', $user->id)
+                ->where('role', 'staff')
+                ->with('staff')
+                ->first();
+                
+            if (!$staff) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Staff not found'
+                ], Response::HTTP_NOT_FOUND);
+            }
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $staff
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Staff retrieval failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve staff'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    /**
      * Search for users who can be added as staff.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -26,7 +89,7 @@ class StaffController extends Controller
             $request->validate(['name' => 'required|string']);
             
             $users = User::where('name', 'like', "%{$request->name}%")
-                ->where('role', '!=', 'staff') // Filter non-staff users
+                ->where('role','customer') // Filter only customers
                 ->limit(10)
                 ->get(['id', 'name', 'email']);
                 
@@ -100,7 +163,7 @@ class StaffController extends Controller
     {
         try {
             $user->staff()->delete();
-            $user->update(['role' => 'guest']);
+            $user->update(['role' => 'customer']);
 
             return response()->json([
                 'status' => 'success',
@@ -145,10 +208,10 @@ class StaffController extends Controller
     public function branch_manager_list(Request $request)
     {
         try {
-            $branch_id = Auth::user()->branch_id;
+            $business_id = Auth::user()->business_id;
             $branch_managers = User::where('role', 'branch_manager')
-                ->where('branch_id', $branch_id)
-                ->get(['id', 'name', 'email']);
+                ->where('business_id', $business_id)
+                ->get();
             
             return response()->json([
                 'status' => 'success',

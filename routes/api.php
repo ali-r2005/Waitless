@@ -13,9 +13,6 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Roles
-Route::apiResource('roles', RoleController::class);
-
 // Routes accessible to business owners
 Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
     // Branch management
@@ -32,8 +29,13 @@ Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
 // Routes accessible to branch managers
 Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group(function () {
     // Limited staff management for branch managers
+    // Roles
+    Route::apiResource('roles', RoleController::class);
     Route::get('/users/search', [StaffController::class, 'search']);
     Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
+    Route::delete('/users/{user}/remove-from-staff', [StaffController::class, 'destroy']);
+    Route::get('/staff', [StaffController::class, 'index']);
+    Route::get('/staff/{user}', [StaffController::class, 'show']);
 });
 
 // Queue routes - accessible based on role
