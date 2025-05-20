@@ -25,7 +25,7 @@ class StaffController extends Controller
             $business_id = Auth::user()->business_id;
             $staff = User::where('role', 'staff')
                 ->where('business_id', $business_id)
-                ->with('staff')
+                ->with('staff', 'branch')
                 ->get();
                 
             return response()->json([

@@ -45,9 +45,6 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
     
     // Queue Management routes
     Route::prefix('queue-management')->group(function () {
-        // Search users
-        Route::get('/search', [QueueManager::class, 'search']);
-        
         // Customer queue operations
         Route::post('/add-customer', [QueueManager::class, 'addCustomerToQueue']);
         Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
@@ -60,11 +57,11 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
         
         // Customer position management
         Route::patch('/customers/{id}/move', [QueueManager::class, 'move']);
-        Route::post('/customers/reinsert', [QueueManager::class, 'reinsertCustomer']);
         
         // Late customer management
         Route::post('/customers/late', [QueueManager::class, 'lateCustomer']);
         Route::get('/customers/late', [QueueManager::class, 'getLateCustomers']);
+        Route::post('/customers/reinsert', [QueueManager::class, 'reinsertCustomer']);
     });
 });
 

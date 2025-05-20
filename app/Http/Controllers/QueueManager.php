@@ -12,39 +12,12 @@ use Illuminate\Http\Response;
 use App\Notifications\NewMessageNotification;
 use App\Events\SendUpdate;
 use App\Models\ServedCustomer;
+use Carbon\Carbon;
+use App\Models\LatecomerQueue;
 
 class QueueManager extends Controller
 {
-    public function search(Request $request)
-    {
-        try {
-            $request->validate(['name' => 'required|string']);
-            
-            $users = User::where('name', 'like', "%{$request->name}%")
-                ->limit(10)
-                ->get(['id', 'name', 'email']);
-                
-            return response()->json([
-                'status' => 'success',
-                'data' => $users
-            ], Response::HTTP_OK);
-            
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            
-        } catch (\Exception $e) {
-            Log::error('Staff search failed: ' . $e->getMessage());
-            
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to search for users'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+    
     public function addCustomerToQueue(Request $request){
         try {
             $request->validate([
@@ -186,25 +159,21 @@ class QueueManager extends Controller
             ]);
             $queue = Queue::find($request->queue_id);
             
-            // Get the queue_user pivot record which contains timestamps
-            $queueUser = $queue->users()
+            // Get the queue_user pivot record directly from the pivot table
+            $pivot = \DB::table('queue_user')
+                ->where('queue_id', $queue->id)
                 ->where('user_id', $request->user_id)
                 ->first();
-                
-            if (!$queueUser) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Customer not found in queue'
-                ], Response::HTTP_NOT_FOUND);
-            }
-            
-            $servedAt = $queueUser->pivot->served_at;
+
+            $servedAt = $pivot ? $pivot->served_at : null;
+            Log::info('servedAt: ' . $servedAt);
             
             // Mark the current time as completed_at
             $completedAt = now();
             
             // Calculate waiting time in seconds between served_at and completed_at
-            $waitingTimeInSeconds = $completedAt->diffInSeconds($servedAt);
+            $waitingTimeInSeconds = Carbon::parse($servedAt)->diffInSeconds($completedAt);
+            Log::info('waitingTimeInSeconds: ' . $waitingTimeInSeconds);
             
             // Create the served customer record
             $servedCustomer = ServedCustomer::create([
@@ -321,6 +290,7 @@ class QueueManager extends Controller
                 
                 // Broadcast the update to this specific user
                 event(new SendUpdate($update));
+                Log::info('the average waiting time is ' . $averageServiceTimeInSeconds);
             }
             
         } catch (\Exception $e) {
@@ -364,7 +334,10 @@ class QueueManager extends Controller
             $queue->users()->updateExistingPivot($request->user_id, [
                 'status' => 'late'
             ]);
-            $queue->latecomerQueue()->users()->attach($request->user_id);
+            $latecomerQueue = $queue->latecomerQueue;
+            if ($latecomerQueue) {
+                $latecomerQueue->users()->attach($request->user_id);
+            }
             $this->broadcastQueueUpdates($queue->id);
             //send notification to the customer
             $user = User::find($request->user_id);
@@ -383,10 +356,13 @@ class QueueManager extends Controller
                 'queue_id' => 'required|exists:queues,id'
             ]);
             $queue = Queue::find($request->queue_id);
-            $lateCustomers = $queue->latecomerQueue()->users()->get();
+            $latecomerQueue = $queue->latecomerQueue;
+            if ($latecomerQueue) {
+                $users = $latecomerQueue->users()->get();
+            }
             return response()->json([
                 'status' => 'success',
-                'data' => $lateCustomers
+                'data' => $users
             ], Response::HTTP_OK);  
         } catch (\Exception $e) {
             Log::error('Failed to get late customers: ' . $e->getMessage());
@@ -406,7 +382,10 @@ class QueueManager extends Controller
                 'position' => 'required|integer'
             ]);
             $queue = Queue::find($request->queue_id);
-            $queue->latecomerQueue()->users()->detach($request->user_id);
+            $latecomerQueue = $queue->latecomerQueue;
+            if ($latecomerQueue) {
+                $latecomerQueue->users()->detach($request->user_id);
+            }
             $queue->users()->updateExistingPivot($request->user_id, [
                 'status' => 'waiting'
             ]);

@@ -162,7 +162,7 @@ The API implements role-based access control with the following roles:
 
 ### Queue Management
 
-#### List Queues
+///#### List Queues
 - **GET** `/api/queues`
 - **Access**: staff, branch_manager, business_owner
 - **Description**: Lists queues based on user role
@@ -171,7 +171,7 @@ The API implements role-based access control with the following roles:
   - Business Owner: All queues in their business
 - **Response**: Array of queue objects
 
-#### Create Queue
+/////#### Create Queue
 - **POST** `/api/queues`
 - **Access**: staff, branch_manager, business_owner
 - **Request Body**:
@@ -185,13 +185,13 @@ The API implements role-based access control with the following roles:
   ```
 - **Response**: Created queue object
 
-#### Get Queue Details
+///#### Get Queue Details
 - **GET** `/api/queues/{queue}`
 - **Access**: staff, branch_manager, business_owner
 - **Description**: Get detailed queue information
 - **Response**: Queue object with related data
 
-#### Update Queue
+/////#### Update Queue
 - **PUT** `/api/queues/{queue}`
 - **Access**: staff, branch_manager, business_owner
 - **Request Body**:
@@ -205,18 +205,12 @@ The API implements role-based access control with the following roles:
   ```
 - **Response**: Updated queue object
 
-#### Delete Queue
+/////#### Delete Queue
 - **DELETE** `/api/queues/{queue}`
 - **Access**: staff, branch_manager, business_owner
 - **Response**: Success message
 
 ### Queue Operations
-
-#### Search Users in Queue
-- **GET** `/api/queue-management/search`
-- **Access**: staff, branch_manager, business_owner
-- **Description**: Search for users in the queue system
-- **Response**: Array of matching users
 
 #### Add Customer to Queue
 - **POST** `/api/queue-management/add-customer`

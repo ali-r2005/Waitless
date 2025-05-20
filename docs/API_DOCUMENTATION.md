@@ -1,279 +1,80 @@
-# Waitless API Documentation
+# Queue API: CRUD Operations
 
-## Base URL
-```
-http://your-api-domain.com
-```
+This section documents only the CRUD (Create, Read, Update, Delete) endpoints for queues, as implemented in `QueueController`. All endpoints require authentication and role-based access control.
 
-## Authentication
-The API uses Laravel Sanctum for authentication. All protected endpoints require a Bearer token in the Authorization header:
-```
-Authorization: Bearer {token}
-```
+---
 
-## Endpoints
+## List Queues
+- **Endpoint:** `GET /api/queues`
+- **Description:** Returns a list of queues filtered by the user's role and optional query parameters (`branch_id`, `is_active`).
+- **Response:**
+  - `status`: `success` or `error`
+  - `data`: array of queue objects
+  - `latecomer_queues`: array of latecomer queue objects
 
-### 1. Register User
-Register a new user account.
+---
 
-**URL:** `/register`  
-**Method:** `POST`  
-**Auth Required:** No
+## Create Queue
+- **Endpoint:** `POST /api/queues`
+- **Description:** Creates a new queue. Only staff and branch managers can create queues for their branch.
+- **Body:**
+  ```json
+  {
+    "name": "string (required)",
+    "scheduled_date": "YYYY-MM-DD (optional)",
+    "is_active": true|false (optional),
+    "start_time": "HH:MM (optional)",
+    "preferences": "json string (optional)"
+  }
+  ```
+- **Response:**
+  - `status`: `success` or `error`
+  - `message`: string
+  - `data`: created queue object
 
-#### Request Body
-```json
-{
-    "name": "string",
-    "email": "string",
-    "phone": "string",
-    "password": "string",
-    "password_confirmation": "string"
-}
-```
+---
 
-#### Business Owner Registration
-```json
-{
-    "name": "string",
-    "email": "string",
-    "phone": "string",
-    "password": "string",
-    "password_confirmation": "string",
-    "role": "business_owner",
-    "business_name": "string",
-    "industry": "string",
-    "logo": "file" // optional, max 2MB
-}
-```
+## Show Queue
+- **Endpoint:** `GET /api/queues/{id}`
+- **Description:** Returns details of a specific queue, including branch, staff, and users. Access is restricted by role.
+- **Response:**
+  - `status`: `success` or `error`
+  - `data`: queue object
+  - `latecomer_queues`: latecomer queue object for this queue
 
-#### Success Response
-```json
-{
-    "status": "success",
-    "message": "User registered successfully",
-    "access_token": "string",
-    "token_type": "Bearer",
-    "user": {
-        "id": "integer",
-        "name": "string",
-        "email": "string",
-        "phone": "string",
-        "role": "string"
-    }
-}
-```
+---
 
-### 2. Login
-Authenticate user and get access token.
+## Update Queue
+- **Endpoint:** `PUT /api/queues/{id}`
+- **Description:** Updates a queue. Only staff and branch managers can update queues they have access to.
+- **Body:**
+  ```json
+  {
+    "name": "string (optional)",
+    "scheduled_date": "YYYY-MM-DD (optional)",
+    "is_active": true|false (optional)",
+    "start_time": "HH:MM (optional)",
+    "preferences": "json string (optional)"
+  }
+  ```
+- **Response:**
+  - `status`: `success` or `error`
+  - `message`: string
+  - `data`: updated queue object
 
-**URL:** `/login`  
-**Method:** `POST`  
-**Auth Required:** No
+---
 
-#### Request Body
-```json
-{
-    "email": "string",
-    "password": "string"
-}
-```
+## Delete Queue
+- **Endpoint:** `DELETE /api/queues/{id}`
+- **Description:** Deletes a queue. Only staff and branch managers can delete queues they have access to.
+- **Response:**
+  - `status`: `success` or `error`
+  - `message`: string
 
-#### Success Response
-```json
-{
-    "access_token": "string",
-    "token_type": "Bearer",
-    "user": {
-        "id": "integer",
-        "name": "string",
-        "email": "string",
-        "phone": "string",
-        "role": "string"
-    },
-    "status": "Login successful"
-}
-```
+---
 
-### 3. Logout
-Invalidate the current access token.
-
-**URL:** `/logout`  
-**Method:** `POST`  
-**Auth Required:** Yes
-
-#### Success Response
-```json
-{
-    "message": "Logout successful"
-}
-```
-
-### 4. Forgot Password
-Request password reset link.
-
-**URL:** `/forgot-password`  
-**Method:** `POST`  
-**Auth Required:** No
-
-#### Request Body
-```json
-{
-    "email": "string"
-}
-```
-
-#### Success Response
-```json
-{
-    "status": "string" // Password reset link sent message
-}
-```
-
-### 5. Reset Password
-Reset password using token from email.
-
-**URL:** `/reset-password`  
-**Method:** `POST`  
-**Auth Required:** No
-
-#### Request Body
-```json
-{
-    "token": "string",
-    "email": "string",
-    "password": "string",
-    "password_confirmation": "string"
-}
-```
-
-#### Success Response
-```json
-{
-    "status": "string" // Password reset success message
-}
-```
-
-### 6. Email Verification
-Send email verification link.
-
-**URL:** `/email/verification-notification`  
-**Method:** `POST`  
-**Auth Required:** Yes
-
-#### Success Response
-```json
-{
-    "status": "verification-link-sent"
-}
-```
-
-### 7. Verify Email
-Verify email using the link from email.
-
-**URL:** `/verify-email/{id}/{hash}`  
-**Method:** `GET`  
-**Auth Required:** Yes
-
-#### Success Response
-Redirects to frontend with verification status.
-
-## Error Responses
-
-### Validation Error (422)
-```json
-{
-    "status": "error",
-    "message": "Validation failed",
-    "errors": {
-        "field": ["error message"]
-    }
-}
-```
-
-### Authentication Error (401)
-```json
-{
-    "message": "Invalid login credentials"
-}
-```
-
-### Email Verification Error (409)
-```json
-{
-    "message": "Your email address is not verified."
-}
-```
-
-## Important Notes
-
-1. All API requests should include:
-   ```
-   Accept: application/json
-   Content-Type: application/json
-   ```
-
-2. For protected routes, include the Bearer token:
-   ```
-   Authorization: Bearer {token}
-   ```
-
-3. Password requirements:
-   - Minimum 8 characters
-   - Must contain at least one letter
-   - Must contain at least one number
-   - Must contain at least one special character
-
-4. Rate limiting:
-   - Login attempts are limited to 5 attempts per minute
-   - Email verification links are limited to 6 attempts per minute
-
-5. Token expiration:
-   - Access tokens do not expire by default
-   - Password reset tokens expire after 60 minutes
-
-6. CORS is configured to allow requests from:
-   - `http://localhost:3000` (development)
-   - Your configured `FRONTEND_URL` (production)
-
-## User Roles
-The system supports the following user roles:
-- `system_admin`: System administrator
-- `business_owner`: Business owner
-- `branch_manager`: Branch manager
-- `staff`: Regular staff member
-- `customer`: Customer
-- `guest`: Default role for new users
-
-## Security Considerations
-
-1. Always use HTTPS in production
-2. Store tokens securely in the frontend application
-3. Implement proper token refresh mechanism
-4. Handle token expiration gracefully
-5. Implement proper error handling for all API responses
-6. Follow security best practices for password storage and transmission
-
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   composer install
-   ```
-3. Copy `.env.example` to `.env` and configure your environment variables
-4. Generate application key:
-   ```bash
-   php artisan key:generate
-   ```
-5. Run migrations:
-   ```bash
-   php artisan migrate
-   ```
-6. Start the development server:
-   ```bash
-   php artisan serve
-   ```
-
-## Support
-
-For any questions or issues, please contact the development team or create an issue in the repository. 
+## Notes
+- All endpoints return JSON responses.
+- Error responses include a `status: error` and a `message` field.
+- Role-based access is enforced; users without the correct role will receive a 403 Forbidden response.
+- For more details on request/response formats, see the controller code or ask the backend team.
