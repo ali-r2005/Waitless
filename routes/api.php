@@ -8,6 +8,10 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\QueueManager; 
 use App\Http\Controllers\BusinessController;
+use Illuminate\Support\Facades\Broadcast;
+
+// Register the broadcasting routes with Sanctum authentication
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
@@ -31,7 +35,6 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
     // Limited staff management for branch managers
     // Roles
     Route::apiResource('roles', RoleController::class);
-    Route::get('/users/search', [StaffController::class, 'search']);
     Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
     Route::delete('/users/{user}/remove-from-staff', [StaffController::class, 'destroy']);
     Route::get('/staff', [StaffController::class, 'index']);
@@ -40,6 +43,7 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
 
 // Queue routes - accessible based on role
 Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])->group(function () {
+    Route::get('/users/search', [StaffController::class, 'search']);
     Route::get('business', [BusinessController::class, 'index']);
     Route::apiResource('queues', QueueController::class);
     
@@ -55,6 +59,10 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
         Route::post('/call-next', [QueueManager::class, 'callNextCustomer']);
         Route::post('/complete-serving', [QueueManager::class, 'completeServing']);
         
+        // Queue pause/resume operations
+        Route::post('/pause', [QueueManager::class, 'pauseQueue']);
+        Route::post('/resume', [QueueManager::class, 'resumeQueue']);
+        
         // Customer position management
         Route::patch('/customers/{id}/move', [QueueManager::class, 'move']);
         
@@ -62,6 +70,9 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
         Route::post('/customers/late', [QueueManager::class, 'lateCustomer']);
         Route::get('/customers/late', [QueueManager::class, 'getLateCustomers']);
         Route::post('/customers/reinsert', [QueueManager::class, 'reinsertCustomer']);
+        
+        // Served customers management
+        Route::get('/customers/served-today', [QueueManager::class, 'getCustomersServedToday']);
     });
 });
 

@@ -82,7 +82,7 @@ class QueueController extends Controller
                 $query->where('is_active', $request->is_active);
             }
             
-            $queues = $query->with(['branch', 'staff'])->get();
+            $queues = $query->with(['branch', 'staff','users'])->get();
             $latecomerQueues = LatecomerQueue::all();
             return response()->json([
                 'status' => 'success',

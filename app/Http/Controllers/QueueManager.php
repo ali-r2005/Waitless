@@ -109,6 +109,56 @@ class QueueManager extends Controller
         return response()->json(['message' => 'Customer moved successfully.']);
     }
 
+    /**
+     * Get customers served today for a specific queue
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCustomersServedToday(Request $request)
+    {
+        try {
+            $request->validate([
+                'queue_id' => 'required|exists:queues,id'
+            ]);
+            
+            $queue = Queue::find($request->queue_id);
+            
+            // Get today's date range (from 00:00:00 to 23:59:59)
+            $today = Carbon::today();
+            $tomorrow = Carbon::tomorrow();
+            
+            // Query served customers for today
+            $servedCustomers = ServedCustomer::with('user')
+                ->where('queue_id', $queue->id)
+                ->whereBetween('created_at', [$today, $tomorrow])
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
+            // Calculate statistics
+            $totalServed = $servedCustomers->count();
+            $averageWaitingTime = $totalServed > 0 ? $servedCustomers->avg('waiting_time') : 0;
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'served_customers' => $servedCustomers,
+                    'statistics' => [
+                        'total_served' => $totalServed,
+                        'average_waiting_time' => round($averageWaitingTime, 2),
+                        'date' => $today->toDateString()
+                    ]
+                ]
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get customers served today: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to get customers served today'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
     public function getQueueCustomers(Request $request){
         try {
@@ -241,11 +291,15 @@ class QueueManager extends Controller
                 ->get();
             
             // Default value if no served customers yet
-            $averageServiceTimeInSeconds = 300;
+            $averageServiceTimeInSeconds = 300; // Default 5 minutes per customer
             
             if ($recentServedCustomers->isNotEmpty()) {
-                $totalWaitingTime = $recentServedCustomers->sum('waiting_time');
-                $averageServiceTimeInSeconds = $totalWaitingTime / $recentServedCustomers->count();
+                // The 'waiting_time' in ServedCustomer is actually the service time (time between served_at and completion)
+                $totalServiceTime = $recentServedCustomers->sum('waiting_time');
+                $averageServiceTimeInSeconds = $totalServiceTime / $recentServedCustomers->count();
+                
+                // Ensure we have a reasonable minimum value (at least 30 seconds)
+                $averageServiceTimeInSeconds = max(30, $averageServiceTimeInSeconds);
             }
             
             // Find the current customer being served (first in queue or with status 'serving')
@@ -262,7 +316,22 @@ class QueueManager extends Controller
                 }
                 
                 // Calculate estimated waiting time based on position and average service time
-                $estimatedWaitingTime = $position * $averageServiceTimeInSeconds;
+                $estimatedWaitingTime = 0;
+                if ($position > 0) {
+                    // If there's a customer being served, adjust the calculation
+                    if ($currentCustomer->status === 'serving') {
+                        // For the first waiting customer, estimate half the average service time
+                        // For others, full time for each position ahead of them
+                        if ($position === 1) {
+                            $estimatedWaitingTime = $averageServiceTimeInSeconds / 2;
+                        } else {
+                            $estimatedWaitingTime = (($position - 1) * $averageServiceTimeInSeconds) + ($averageServiceTimeInSeconds / 2);
+                        }
+                    } else {
+                        // No customer is currently being served, so use the original calculation
+                        $estimatedWaitingTime = $position * $averageServiceTimeInSeconds;
+                    }
+                }
                 
                 // Get remaining customers count
                 $customersAhead = $position;
@@ -290,7 +359,7 @@ class QueueManager extends Controller
                 
                 // Broadcast the update to this specific user
                 event(new SendUpdate($update));
-                Log::info('the average waiting time is ' . $averageServiceTimeInSeconds);
+                Log::info('The average service time is ' . $averageServiceTimeInSeconds . ' seconds');
             }
             
         } catch (\Exception $e) {
@@ -417,5 +486,108 @@ class QueueManager extends Controller
         }
     }
     
+    /**
+     * Pause a queue
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pauseQueue(Request $request)
+    {
+        try {
+            $request->validate([
+                'queue_id' => 'required|exists:queues,id',
+                'reason' => 'nullable|string|max:255'
+            ]);
+            
+            $queue = Queue::findOrFail($request->queue_id);
+            
+            // Only active queues can be paused
+            if (!$queue->is_active) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Cannot pause an inactive queue'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+            
+            // If already paused, return success but with a message
+            if ($queue->is_paused) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Queue is already paused'
+                ], Response::HTTP_OK);
+            }
+            
+            // Pause the queue
+            $queue->is_paused = true;
+            $queue->save();
+            
+            // Broadcast the pause status to all customers in the queue
+            $this->broadcastQueueUpdates($queue->id);
+            
+            // Log the pause action
+            $reason = $request->reason ?? 'No reason provided';
+            Log::info("Queue {$queue->name} (ID: {$queue->id}) paused. Reason: {$reason}");
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Queue paused successfully'
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to pause queue: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to pause queue'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * Resume a paused queue
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resumeQueue(Request $request)
+    {
+        try {
+            $request->validate([
+                'queue_id' => 'required|exists:queues,id'
+            ]);
+            
+            $queue = Queue::findOrFail($request->queue_id);
+            
+            // Only paused queues can be resumed
+            if (!$queue->is_paused) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Queue is not paused'
+                ], Response::HTTP_OK);
+            }
+            
+            // Resume the queue
+            $queue->is_paused = false;
+            $queue->save();
+            
+            // Broadcast the resumed status to all customers in the queue
+            $this->broadcastQueueUpdates($queue->id);
+            
+            // Log the resume action
+            Log::info("Queue {$queue->name} (ID: {$queue->id}) resumed");
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Queue resumed successfully'
+            ], Response::HTTP_OK);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to resume queue: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to resume queue'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
 }
-

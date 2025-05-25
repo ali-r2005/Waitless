@@ -18,6 +18,8 @@ class Queue extends Model
         'name',
         'scheduled_date',
         'is_active',
+        'auto_activate',
+        'is_paused',
         'start_time',
         'preferences'
     ];
