@@ -51,7 +51,6 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
     Route::prefix('queue-management')->group(function () {
         // Customer queue operations
         Route::post('/add-customer', [QueueManager::class, 'addCustomerToQueue']);
-        Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
         Route::get('/customers', [QueueManager::class, 'getQueueCustomers']);
         
         // Queue operations
@@ -75,5 +74,12 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
         Route::get('/customers/served-today', [QueueManager::class, 'getCustomersServedToday']);
     });
 });
+
+// Queue Management routes accessible to any authenticated user (e.g., customer removing themselves)
+Route::middleware(['auth:sanctum'])->prefix('queue-management')->group(function () {
+    Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
+});
+
+
 
 require __DIR__.'/auth.php';
