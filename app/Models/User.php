@@ -74,7 +74,9 @@ class User extends Authenticatable
 
     public function queues()
     {
-        return $this->belongsToMany(Queue::class)->using(QueueUser::class);
+        return $this->belongsToMany(Queue::class)
+            ->using(QueueUser::class)
+            ->withPivot('status', 'ticket_number', 'served_at', 'late_at', 'position');
     }
 
     public function latecomerQueues()

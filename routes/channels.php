@@ -11,3 +11,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('update.{receiver_id}', function ($user, $receiver_id) {
     return true;
 });
+
+Broadcast::channel('staff.queue.{queue_id}', function ($user, $queue_id) {
+    return true;
+});

@@ -177,6 +177,7 @@ class QueueController extends Controller
     public function show(string $id)
     {
         try {
+            // Load the queue with all necessary relationships and pivot data
             $queue = Queue::with(['branch', 'staff', 'users'])->find($id);
             
             if (!$queue) {

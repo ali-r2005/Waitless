@@ -41,7 +41,9 @@ class Queue extends Model
 
     public function users()
     {
-        return $this->belongsToMany(User::class)->using(QueueUser::class);
+        return $this->belongsToMany(User::class)
+            ->using(QueueUser::class)
+            ->withPivot('status', 'ticket_number', 'served_at', 'late_at', 'position');
     }
 
     public function latecomerQueue()

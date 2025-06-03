@@ -1,10 +1,30 @@
-# Waitless API Documentation
+# Waitless Dashboard Implementation Guide
 
-## Queue Management API
+This document provides guidelines for implementing role-specific dashboards in the Waitless queue management system. It includes dashboard components, data requirements, and API endpoints for each user role.
 
-This documentation provides details about the queue management API endpoints available in the Waitless application. These endpoints allow frontend developers to interact with the queue system, manage customers in queues, and handle queue operations.
+## Table of Contents
 
-### Authentication
+1. [Overview](#overview)
+2. [Authentication](#authentication)
+3. [Real-time Updates](#real-time-updates)
+4. [Business Owner Dashboard](#business-owner-dashboard)
+5. [Branch Manager Dashboard](#branch-manager-dashboard)
+6. [Staff Dashboard](#staff-dashboard)
+7. [Common Components](#common-components)
+8. [Implementation Best Practices](#implementation-best-practices)
+9. [API Reference](#api-reference)
+
+## Overview
+
+The Waitless system features three distinct dashboard interfaces tailored to specific user roles:
+
+- **Business Owner Dashboard**: High-level overview of all branches and business performance
+- **Branch Manager Dashboard**: Detailed view of branch operations and staff performance
+- **Staff Dashboard**: Queue management tools and real-time customer service interface
+
+Each dashboard interfaces with the Waitless API to retrieve data and perform operations. This document outlines the components, data requirements, and corresponding API endpoints for each dashboard.
+
+## Authentication
 
 All API endpoints require authentication using Laravel Sanctum. Include the authentication token in the request header:
 
@@ -12,560 +32,479 @@ All API endpoints require authentication using Laravel Sanctum. Include the auth
 Authorization: Bearer {your_token}
 ```
 
-### Response Format
+Frontend implementation should:
+1. Store the token securely (HttpOnly cookies recommended)
+2. Include the token in all API requests
+3. Handle token refresh when needed
+4. Redirect to login when authentication fails
 
-All API responses follow a consistent format:
+## Real-time Updates
+
+Dashboard components should update in real-time using Laravel Echo and Pusher. Two main event types are broadcast:
+
+### 1. Customer Updates (`SendUpdate` Event)
+- **Channel**: `private-user.{user_id}`
+- **Use**: Customer-specific updates about queue position and waiting time
+
+### 2. Staff Queue Updates (`StaffQueueUpdate` Event)
+- **Channel**: `private-staff.queue.{queue_id}`
+- **Use**: Queue statistics for staff and branch managers
+- **Data Format**:
 
 ```json
 {
-  "status": "success|error",
-  "message": "Description of the operation result (optional)",
-  "data": { ... } // Response data (optional)
+  "queue_id": 1,
+  "queue_name": "Customer Service Queue",
+  "is_active": true,
+  "is_paused": false,
+  "queue_state": "active",
+  "current_serving": {
+    "id": 15,
+    "name": "Jane Smith",
+    "phone": "1234567890",
+    "email": "jane@example.com",
+    "ticket_number": "TICKET-1",
+    "status": "serving"
+  },
+  "total_customers": 5,
+  "average_service_time": 180,
+  "waiting_customers": 4,
+  "next_available_customer": {
+    "id": 16,
+    "name": "John Doe",
+    "ticket_number": "TICKET-2"
+  },
+  "timestamp": "2025-06-01T22:30:00.000000Z"
 }
 ```
+
+### Echo Client Setup
+
+```javascript
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+window.Pusher = Pusher;
+window.Echo = new Echo({
+  broadcaster: 'pusher',
+  key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY,
+  cluster: process.env.NEXT_PUBLIC_PUSHER_APP_CLUSTER,
+  forceTLS: true,
+  authorizer: (channel) => {
+    return {
+      authorize: (socketId, callback) => {
+        fetch('/api/broadcasting/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+          },
+          body: JSON.stringify({
+            socket_id: socketId,
+            channel_name: channel.name
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          callback(false, data);
+        })
+        .catch(error => {
+          callback(true, error);
+        });
+      }
+    };
+  }
+});
+```
+
+## Business Owner Dashboard
+
+### Purpose
+Provide a high-level overview of all branches and business performance metrics to inform strategic decisions.
+
+### Main Components
+
+#### 1. Business Overview Card
+- **Data Elements**:
+  - Total branches
+  - Total active queues
+  - Total customers served today
+  - Business-wide average waiting time
+- **API Endpoints**:
+  - `GET /api/branches` - Get all branches
+  - `GET /api/queues?is_active=true` - Get all active queues
+  - Custom aggregation needed (combine data from multiple endpoints)
+
+#### 2. Branch Performance Comparison
+- **Data Elements**:
+  - Branch ranking by customer volume
+  - Branch average waiting times
+  - Branch staff efficiency
+- **API Endpoints**:
+  - `GET /api/branches` - Get all branches
+  - `GET /api/branches/{branch}/hierarchy` - For branch structure
+  - Custom server-side aggregation of served customer data per branch needed
+
+#### 3. Queue Utilization Chart
+- **Data Elements**:
+  - Queue usage across branches
+  - Active vs. inactive queues
+  - Peak hours visualization
+- **API Endpoints**:
+  - `GET /api/queues` - Get all queues
+  - Custom time-based analysis needed
+
+#### 4. Branch Management Panel
+- **Data Elements**:
+  - Branch hierarchy
+  - Branch manager assignments
+  - Create/edit branch capabilities
+- **API Endpoints**:
+  - `GET /api/branches` - List branches
+  - `POST /api/branches` - Create branch
+  - `PUT /api/branches/{branch}` - Update branch
+  - `DELETE /api/branches/{branch}` - Delete branch
+  - `GET /api/branches/{branch}/hierarchy` - Get branch hierarchy
+  - `POST /api/branches/{branch}/move-sub-branches` - Reorganize branches
+  - `GET /api/branch-managers` - List branch managers
+  - `POST /api/users/{user}/branch-manager` - Assign branch manager
+  - `DELETE /api/branch-managers/{user}` - Remove branch manager
+
+#### 5. Alert Dashboard
+- **Data Elements**:
+  - Branches with excessive wait times
+  - Paused queues
+  - Inactive scheduled queues
+- **API Endpoints**:
+  - `GET /api/queues?is_paused=true` - Get paused queues
+  - Custom threshold analysis needed
+
+### Sample Layout
+```
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|      Business Overview           |    Branch Performance Chart      |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+|                                                                     |
+|                     Queue Utilization Chart                         |
+|                                                                     |
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|    Branch Management Panel       |         Alert Dashboard          |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+```
+
+## Branch Manager Dashboard
+
+### Purpose
+Provide detailed information about branch operations, queue management, and staff performance to optimize daily operations.
+
+### Main Components
+
+#### 1. Branch Overview Card
+- **Data Elements**:
+  - Total active queues in branch
+  - Total customers waiting
+  - Customers served today
+  - Average waiting time today
+- **API Endpoints**:
+  - `GET /api/queues?branch_id={id}` - Get branch queues
+  - `GET /api/queue-management/customers?queue_id={id}` - For each queue
+  - `GET /api/queue-management/customers/served-today?queue_id={id}` - For each queue
+
+#### 2. Active Queues Management
+- **Data Elements**:
+  - List of all active queues
+  - Queue status (active/paused)
+  - Current queue length
+  - Staff assignment
+- **API Endpoints**:
+  - `GET /api/queues?branch_id={id}&is_active=true` - Get active queues
+  - `POST /api/queue-management/activate` - Activate/deactivate queue
+  - `POST /api/queue-management/pause` - Pause queue
+  - `POST /api/queue-management/resume` - Resume queue
+
+#### 3. Staff Performance Metrics
+- **Data Elements**:
+  - Staff list
+  - Customers served per staff
+  - Average service time per staff
+  - Queue handling metrics
+- **API Endpoints**:
+  - `GET /api/staff` - Get staff list
+  - `GET /api/staff/{user}` - Get staff details
+  - Custom aggregation of served customer data by staff member needed
+
+#### 4. Queue Creation Panel
+- **Data Elements**:
+  - Create new queues
+  - Schedule future queues
+  - Configure queue auto-activation
+- **API Endpoints**:
+  - `POST /api/queues` - Create queue
+
+#### 5. Late Customer Management
+- **Data Elements**:
+  - List of late customers
+  - Options to reinsert customers
+- **API Endpoints**:
+  - `GET /api/queue-management/customers/late?queue_id={id}` - Get late customers
+  - `POST /api/queue-management/customers/reinsert` - Reinsert late customer
+
+### Sample Layout
+```
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|      Branch Overview             |    Active Queues Management      |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|    Staff Performance Metrics     |    Queue Creation Panel          |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+|                                                                     |
+|                     Late Customer Management                        |
+|                                                                     |
++----------------------------------+----------------------------------+
+```
+
+## Staff Dashboard
+
+### Purpose
+Provide focused tools for managing assigned queues and serving customers efficiently.
+
+### Main Components
+
+#### 1. Current Queue Status Card
+- **Data Elements**:
+  - Queue state (active/paused/inactive)
+  - Currently serving customer
+  - Next customer in line
+  - Waiting customers count
+- **API Endpoints**:
+  - `GET /api/queues/{id}` - Get queue details
+  - **Real-time Updates**: Subscribe to `private-staff.queue.{queue_id}` channel
+
+#### 2. Customer Service Panel
+- **Data Elements**:
+  - Current customer details
+  - Call next customer button
+  - Complete service button
+  - Mark as late button
+- **API Endpoints**:
+  - `POST /api/queue-management/call-next` - Call next customer
+  - `POST /api/queue-management/complete-serving` - Complete service
+  - `POST /api/queue-management/customers/late` - Mark customer as late
+
+#### 3. Queue Control Panel
+- **Data Elements**:
+  - Pause/resume queue controls
+  - Customer reordering interface
+  - Add walk-in customer
+- **API Endpoints**:
+  - `POST /api/queue-management/pause` - Pause queue
+  - `POST /api/queue-management/resume` - Resume queue
+  - `PATCH /api/queue-management/customers/{id}/move` - Move customer
+  - `POST /api/queue-management/add-customer` - Add customer
+
+#### 4. Today's Performance Stats
+- **Data Elements**:
+  - Customers served today
+  - Average service time
+  - Average waiting time
+- **API Endpoints**:
+  - `GET /api/queue-management/customers/served-today?queue_id={id}` - Get served customers with stats
+
+#### 5. Queue Customer List
+- **Data Elements**:
+  - List of all customers in queue
+  - Status (waiting/serving)
+  - Position and ticket number
+- **API Endpoints**:
+  - `GET /api/queue-management/customers?queue_id={id}` - Get queue customers
+  - **Real-time Updates**: Subscribe to `private-staff.queue.{queue_id}` channel
+
+### Sample Layout
+```
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|    Current Queue Status          |    Customer Service Panel        |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+|                                  |                                  |
+|    Queue Control Panel           |    Today's Performance Stats     |
+|                                  |                                  |
++----------------------------------+----------------------------------+
+|                                                                     |
+|                     Queue Customer List                             |
+|                                                                     |
++----------------------------------+----------------------------------+
+```
+
+## Common Components
+
+These components can be shared across multiple dashboards:
+
+### 1. Queue Status Indicator
+- **Description**: Visual indicator showing queue state (active, paused, inactive)
+- **Data Source**: Queue state from API or real-time updates
+- **Implementation**: Color-coded badge with text
+
+### 2. Notification Center
+- **Description**: Display system and user notifications
+- **Data Source**: User notifications API
+- **Implementation**: Dropdown menu with unread count
+
+### 3. User Profile Menu
+- **Description**: User information and logout
+- **Data Source**: Current user data
+- **Implementation**: Dropdown menu with avatar
+
+## Implementation Best Practices
+
+### State Management
+- Use Redux or React Context for global state
+- Implement optimistic UI updates for better UX
+- Cache data where appropriate to reduce API calls
+
+### Real-time Updates
+- Establish Echo connections early in the application lifecycle
+- Implement reconnection logic for network interruptions
+- Use skeleton loaders while waiting for initial data
+
+### Responsive Design
+- Implement mobile-first approach
+- Use responsive grid layouts
+- Consider different device capabilities
 
 ### Error Handling
+- Implement global error boundary
+- Show user-friendly error messages
+- Log errors to server for monitoring
 
-Error responses include appropriate HTTP status codes and error details:
+### Performance
+- Implement pagination for large data sets
+- Use virtualized lists for long customer queues
+- Optimize re-renders with memoization
 
-```json
-{
-  "status": "error",
-  "message": "Error description",
-  "errors": { ... } // Validation errors (if applicable)
-}
-```
-
----
-
-## Queue Management Endpoints
+## API Reference
 
 ### Queue Resource Endpoints
 
 #### 1. List Queues
-
-Retrieves a list of queues based on the user's role.
-
 - **URL**: `/api/queues`
 - **Method**: `GET`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager, business_owner
 - **Query Parameters**:
   - `branch_id` (optional): Filter queues by branch
   - `is_active` (optional): Filter by active status
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "id": 1,
-      "branch_id": 5,
-      "staff_id": 10,
-      "name": "Customer Service Queue",
-      "scheduled_date": "2025-05-24",
-      "is_active": true,
-      "start_time": "09:00",
-      "preferences": null,
-      "created_at": "2025-05-20T10:30:00.000000Z",
-      "updated_at": "2025-05-20T10:30:00.000000Z",
-      "branch": {
-        "id": 5,
-        "name": "Downtown Branch",
-        "address": "123 Main St"
-      },
-      "staff": {
-        "id": 10,
-        "name": "John Doe"
-      }
-    }
-  ],
-  "latecomer_queues": [
-    {
-      "id": 1,
-      "queue_id": 1
-    }
-  ]
-}
-```
+  - `is_paused` (optional): Filter by paused status
 
 #### 2. Create Queue
-
-Creates a new queue.
-
 - **URL**: `/api/queues`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "name": "Customer Service Queue",
-    "scheduled_date": "2025-05-24",
-    "is_active": true,
-    "start_time": "09:00",
-    "preferences": null
-  }
-  ```
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Queue created successfully",
-  "data": {
-    "id": 1,
-    "branch_id": 5,
-    "staff_id": 10,
-    "name": "Customer Service Queue",
-    "scheduled_date": "2025-05-24",
-    "is_active": true,
-    "start_time": "09:00",
-    "preferences": null,
-    "created_at": "2025-05-20T10:30:00.000000Z",
-    "updated_at": "2025-05-20T10:30:00.000000Z"
-  }
-}
-```
 
 #### 3. Get Queue Details
-
-Retrieves details of a specific queue including users in the queue.
-
 - **URL**: `/api/queues/{id}`
 - **Method**: `GET`
-- **Auth Required**: Yes
-- **Permissions**: staff (own queues), branch_manager (branch queues), business_owner (business queues)
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "data": {
-    "id": 1,
-    "branch_id": 5,
-    "staff_id": 10,
-    "name": "Customer Service Queue",
-    "scheduled_date": "2025-05-24",
-    "is_active": true,
-    "start_time": "09:00",
-    "preferences": null,
-    "created_at": "2025-05-20T10:30:00.000000Z",
-    "updated_at": "2025-05-20T10:30:00.000000Z",
-    "branch": {
-      "id": 5,
-      "name": "Downtown Branch",
-      "address": "123 Main St"
-    },
-    "staff": {
-      "id": 10,
-      "name": "John Doe"
-    },
-    "users": [
-      {
-        "id": 15,
-        "name": "Jane Smith",
-        "email": "jane@example.com",
-        "pivot": {
-          "queue_id": 1,
-          "user_id": 15,
-          "status": "waiting",
-          "ticket_number": "TICKET-1",
-          "position": 1
-        }
-      }
-    ]
-  },
-  "latecomer_queues": {
-    "id": 1,
-    "queue_id": 1,
-    "created_at": "2025-05-20T10:30:00.000000Z",
-    "updated_at": "2025-05-20T10:30:00.000000Z"
-  }
-}
-```
 
 #### 4. Update Queue
-
-Updates an existing queue.
-
 - **URL**: `/api/queues/{id}`
 - **Method**: `PUT` or `PATCH`
-- **Auth Required**: Yes
-- **Permissions**: staff (own queues), branch_manager (branch queues)
-- **Request Body**:
-  ```json
-  {
-    "name": "Updated Queue Name",
-    "scheduled_date": "2025-05-25",
-    "is_active": true,
-    "start_time": "10:00",
-    "preferences": null
-  }
-  ```
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Queue updated successfully",
-  "data": {
-    "id": 1,
-    "branch_id": 5,
-    "staff_id": 10,
-    "name": "Updated Queue Name",
-    "scheduled_date": "2025-05-25",
-    "is_active": true,
-    "start_time": "10:00",
-    "preferences": null,
-    "created_at": "2025-05-20T10:30:00.000000Z",
-    "updated_at": "2025-05-23T15:45:00.000000Z"
-  }
-}
-```
 
 #### 5. Delete Queue
-
-Deletes a queue.
-
 - **URL**: `/api/queues/{id}`
 - **Method**: `DELETE`
-- **Auth Required**: Yes
-- **Permissions**: staff (own queues), branch_manager (branch queues)
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Queue deleted successfully"
-}
-```
-
-### Queue Customer Management
+### Queue Management Endpoints
 
 #### 1. Add Customer to Queue
-
-Adds a customer to a queue.
-use this endpoint to search for a customer and add it to a queue
-url `/api/users/search?name={name}`
-- **Access**: staff, branch_manager, business_owner
-- **Description**: Search for users to add to queue
-- **Response**: Array of matching users with his id
-
 - **URL**: `/api/queue-management/add-customer`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager, business_owner
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "user_id": 15
-  }
-  ```
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer added to queue successfully"
-}
-```
 
 #### 2. Remove Customer from Queue
-
-Removes a customer from a queue.
-
 - **URL**: `/api/queue-management/remove-customer`
 - **Method**: `DELETE`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager, business_owner
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "user_id": 15
-  }
-  ```
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer removed from queue successfully"
-}
-```
 
 #### 3. Get Queue Customers
-
-Retrieves all customers in a specific queue.
-
 - **URL**: `/api/queue-management/customers`
 - **Method**: `GET`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager, business_owner
-- **Query Parameters**:
-  - `queue_id` (required): ID of the queue
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "id": 15,
-      "name": "Jane Smith",
-      "email": "jane@example.com",
-      "pivot": {
-        "queue_id": 1,
-        "user_id": 15,
-        "status": "waiting",
-        "ticket_number": "TICKET-1",
-        "position": 1,
-        "served_at": null,
-        "late_at": null
-      }
-    }
-  ]
-}
-```
 
 #### 4. Move Customer in Queue
-
-Changes a customer's position in the queue.
-
 - **URL**: `/api/queue-management/customers/{id}/move`
 - **Method**: `PATCH`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager, business_owner
-- **URL Parameters**:
-  - `id`: The QueueUser pivot ID (not the user ID)
-- **Request Body**:
-  ```json
-  {
-    "new_position": 3
-  }
-  ```
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer position updated successfully"
-}
-```
-
-### Queue Operations
-
-#### 1. Activate Queue
-
-Activates a queue to start serving customers.
-
+#### 5. Activate Queue
 - **URL**: `/api/queue-management/activate`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "is_active": true
-  }
-  ```
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Queue activated successfully"
-}
-```
-
-#### 2. Call Next Customer
-
-Calls the next customer in the queue.
-
+#### 6. Call Next Customer
 - **URL**: `/api/queue-management/call-next`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1
-  }
-  ```
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Next customer called successfully",
-  "data": {
-    "user": {
-      "id": 15,
-      "name": "Jane Smith",
-      "email": "jane@example.com"
-    },
-    "ticket_number": "TICKET-1"
-  }
-}
-```
-
-#### 3. Complete Serving
-
-Marks the current customer as served and removes them from the queue.
-
+#### 7. Complete Serving
 - **URL**: `/api/queue-management/complete-serving`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "user_id": 15,
-    "notes": "Customer service completed successfully"
-  }
-  ```
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer service completed successfully"
-}
-```
+#### 8. Pause Queue
+- **URL**: `/api/queue-management/pause`
+- **Method**: `POST`
+
+#### 9. Resume Queue
+- **URL**: `/api/queue-management/resume`
+- **Method**: `POST`
 
 ### Late Customer Management
 
 #### 1. Mark Customer as Late
-
-Marks a customer as late and moves them to the latecomer queue.
-
 - **URL**: `/api/queue-management/customers/late`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "user_id": 15
-  }
-  ```
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer marked as late successfully"
-}
-```
 
 #### 2. Get Late Customers
-
-Retrieves all late customers for a specific queue.
-
 - **URL**: `/api/queue-management/customers/late`
 - **Method**: `GET`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Query Parameters**:
-  - `queue_id` (required): ID of the queue
-
-**Response Example**:
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "id": 15,
-      "name": "Jane Smith",
-      "email": "jane@example.com"
-    }
-  ]
-}
-```
 
 #### 3. Reinsert Late Customer
-
-Reinserts a late customer back into the main queue at a specified position.
-
 - **URL**: `/api/queue-management/customers/reinsert`
 - **Method**: `POST`
-- **Auth Required**: Yes
-- **Permissions**: staff, branch_manager
-- **Request Body**:
-  ```json
-  {
-    "queue_id": 1,
-    "user_id": 15,
-    "position": 2
-  }
-  ```
 
-**Response Example**:
-```json
-{
-  "status": "success",
-  "message": "Customer reinserted in the queue successfully"
-}
-```
+### Analytics Endpoints
 
-## Real-time Updates
+#### 1. Get Customers Served Today
+- **URL**: `/api/queue-management/customers/served-today`
+- **Method**: `GET`
 
-The Waitless system broadcasts queue updates in real-time to keep customers informed about their position and queue status. Frontend applications should implement event listeners with pusher to receive these updates.
+### Branch Management Endpoints
 
-### Queue Update Event
+#### 1. List Branches
+- **URL**: `/api/branches`
+- **Method**: `GET`
 
-When queue changes occur (customer added, removed, moved, etc.), the system broadcasts updates to all connected clients.
+#### 2. Get Branch Hierarchy
+- **URL**: `/api/branches/{branch}/hierarchy`
+- **Method**: `GET`
 
-- **Event Name**: `SendUpdate`
-- **Channel**: `queue.{queue_id}`
-- **Data Format**:
-  ```json
-  {
-    "queue": {
-      "id": 1,
-      "name": "Customer Service Queue",
-      "is_active": true
-    },
-    "customers": [
-      {
-        "id": 15,
-        "name": "Jane Smith",
-        "position": 1,
-        "ticket_number": "TICKET-1",
-        "status": "waiting"
-      }
-    ],
-    "current_serving": {
-      "user_id": null,
-      "ticket_number": null
-    }
-  }
-  ```
+#### 3. Move Sub-branches
+- **URL**: `/api/branches/{branch}/move-sub-branches`
+- **Method**: `POST`
 
-## Implementation Notes
+### Staff Management Endpoints
 
-1. **Position Management**: When a customer is removed or moved in a queue, the system automatically normalizes positions to ensure continuous numbering.
+#### 1. List Staff
+- **URL**: `/api/staff`
+- **Method**: `GET`
 
-2. **Ticket Numbers**: Ticket numbers are generated automatically when a customer is added to a queue in the format "TICKET-{position}".
+#### 2. Get Staff Details
+- **URL**: `/api/staff/{user}`
+- **Method**: `GET`
 
-3. **Customer Status**: Customers can have the following statuses:
-   - `waiting`: In queue waiting to be served
-   - `being_served`: Currently being served
-   - `served`: Service completed
-   - `late`: Missed their turn and moved to latecomer queue
+#### 3. Search Users
+- **URL**: `/api/users/search`
+- **Method**: `GET`
+- **Query Parameters**:
+  - `name` (optional): Search users by name
 
-4. **Notifications**: The system sends notifications to customers when they are:
-   - Added to a queue
-   - Called for service
-   - Marked as late
+---
 
-5. **Role-Based Access**: Different endpoints have different permission requirements based on user roles:
-   - `staff`: Can manage their own queues
-   - `branch_manager`: Can manage all queues in their branch
-   - `business_owner`: Can view all queues in the business
+This implementation guide provides a comprehensive framework for building role-specific dashboards in the Waitless queue management system. Frontend developers should adapt these recommendations based on specific project requirements and design guidelines. 
