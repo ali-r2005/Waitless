@@ -2,5 +2,8 @@
   "devDependencies": {
     "laravel-echo": "^2.0.2",
     "pusher-js": "^8.4.0"
+  },
+  "scripts": {
+    "build": "echo 'No frontend build required for Laravel API'"
   }
 }
