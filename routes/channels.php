@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::routes(['middleware' => ['auth:sanctum']]); // or 'auth' depending on your setup
+Broadcast::routes(['middleware' => ['auth:api']]); // JWT authentication
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;

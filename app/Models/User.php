@@ -6,7 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use App\Models\Queue;
 use App\Models\Business;
 use App\Models\Branch;
@@ -15,10 +15,10 @@ use App\Models\LatecomerQueue;
 use App\Models\QueueUser;
 use App\Models\LatecomerQueueUser;
 use App\Models\ServedCustomer;
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -44,6 +44,17 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    //implemet jwt
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
 
     public function business()
     {

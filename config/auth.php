@@ -40,6 +40,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'api' => [
+            'driver' => 'jwt', // 👈 use jwt here
+            'provider' => 'users',
+            'hash' => false,
+        ],
     ],
 
     /*

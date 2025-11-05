@@ -10,15 +10,15 @@ use App\Http\Controllers\QueueManager;
 use App\Http\Controllers\BusinessController;
 use Illuminate\Support\Facades\Broadcast;
 
-// Register the broadcasting routes with Sanctum authentication
-Broadcast::routes(['middleware' => ['auth:sanctum']]);
+// Register the broadcasting routes with JWT authentication
+Broadcast::routes(['middleware' => ['auth:api']]);
 
-Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
+Route::middleware(['auth:api'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
 // Routes accessible to business owners
-Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
+Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
     // Branch management
     Route::apiResource('branches', BranchController::class);
     Route::get('/branches/{branch}/hierarchy', [BranchController::class, 'hierarchy']);
@@ -31,7 +31,7 @@ Route::middleware(['auth:sanctum', 'role:business_owner'])->group(function () {
 });
 
 // Routes accessible to branch managers
-Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group(function () {
+Route::middleware(['auth:api', 'role:branch_manager,business_owner'])->group(function () {
     // Limited staff management for branch managers
     // Roles
     Route::apiResource('roles', RoleController::class);
@@ -42,7 +42,7 @@ Route::middleware(['auth:sanctum', 'role:branch_manager,business_owner'])->group
 });
 
 // Queue routes - accessible based on role
-Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])->group(function () {
+Route::middleware(['auth:api', 'role:staff,branch_manager,business_owner'])->group(function () {
     Route::get('/users/search', [StaffController::class, 'search']);
     Route::get('business', [BusinessController::class, 'index']);
     Route::apiResource('queues', QueueController::class);
@@ -76,7 +76,7 @@ Route::middleware(['auth:sanctum', 'role:staff,branch_manager,business_owner'])-
 });
 
 // Queue Management routes accessible to any authenticated user (e.g., customer removing themselves)
-Route::middleware(['auth:sanctum'])->prefix('queue-management')->group(function () {
+Route::middleware(['auth:api'])->prefix('queue-management')->group(function () {
     Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
 });
 

@@ -100,8 +100,8 @@ class RegisteredUserController extends Controller
                     $user->business()->associate($business);
                     $user->save();
                     
-                    // Create authentication token
-                    $token = $user->createToken('auth_token')->plainTextToken;
+                    // Create JWT authentication token
+                    $token = auth('api')->login($user);
                     
                     $response = response()->json([
                         'status' => 'success',
@@ -113,7 +113,7 @@ class RegisteredUserController extends Controller
                     ], Response::HTTP_CREATED);
                 } else {
                     // Regular user registration
-                    $token = $user->createToken('auth_token')->plainTextToken;
+                    $token = auth('api')->login($user);
                     
                     $response = response()->json([
                         'status' => 'success',
