@@ -22,11 +22,22 @@ class BranchController extends Controller
     public function index(Request $request)
     {
         try {
-            $branches = Branch::where('business_id', Auth::user()->business_id)->get();
+            $perPage = $request->input('per_page', 5); // Default 15 items per page
+            
+            $branches = Branch::where('business_id', Auth::user()->business_id)
+                ->paginate($perPage);
             
             return response()->json([
                 'status' => 'success',
-                'data' => $branches
+                'data' => $branches->items(),
+                'pagination' => [
+                    'current_page' => $branches->currentPage(),
+                    'last_page' => $branches->lastPage(),
+                    'per_page' => $branches->perPage(),
+                    'total' => $branches->total(),
+                    'from' => $branches->firstItem(),
+                    'to' => $branches->lastItem(),
+                ]
             ], Response::HTTP_OK);
             
         } catch (\Exception $e) {
