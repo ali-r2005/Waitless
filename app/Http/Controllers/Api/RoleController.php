@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -17,11 +17,12 @@ class RoleController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $perPage = $request->input('per_page', 5); // Default 5 items per page
             $buisinessId = Auth::user()->business_id;
-            $roles = Role::where('business_id', $buisinessId)->get();
+            $roles = Role::where('business_id', $buisinessId)->paginate($perPage);
             if ($roles->isEmpty()) {
                 return response()->json([
                     'status' => 'error',
@@ -31,7 +32,15 @@ class RoleController extends Controller
             
             return response()->json([
                 'status' => 'success',
-                'data' => $roles
+                'data' => $roles->items(),
+                'pagination' => [
+                    'current_page' => $roles->currentPage(),
+                    'last_page' => $roles->lastPage(),
+                    'per_page' => $roles->perPage(),
+                    'total' => $roles->total(),
+                    'from' => $roles->firstItem(),
+                    'to' => $roles->lastItem(),
+                ]
             ], Response::HTTP_OK);
             
         } catch (\Exception $e) {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
-use App\Models\Business;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +21,7 @@ class BranchController extends Controller
     public function index(Request $request)
     {
         try {
-            $perPage = $request->input('per_page', 5); // Default 15 items per page
+            $perPage = $request->input('per_page', 5); // Default 5 items per page
             
             $branches = Branch::where('business_id', Auth::user()->business_id)
                 ->paginate($perPage);
