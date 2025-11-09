@@ -19,18 +19,27 @@ class StaffController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
+            $perPage = $request->input('per_page', 5); // Default 5 items per page
             $business_id = Auth::user()->business_id;
-            $staff = User::where('role', 'staff')
+            $staff = User::whereIn('role', ['staff', 'branch_manager'])
                 ->where('business_id', $business_id)
                 ->with('staff', 'branch')
-                ->get();
+                ->paginate($perPage);
                 
             return response()->json([
                 'status' => 'success',
-                'data' => $staff
+                'data' => $staff->items(),
+                'pagination' => [
+                    'current_page' => $staff->currentPage(),
+                    'last_page' => $staff->lastPage(),
+                    'per_page' => $staff->perPage(),
+                    'total' => $staff->total(),
+                    'from' => $staff->firstItem(),
+                    'to' => $staff->lastItem(),
+                ]
             ], Response::HTTP_OK);
             
         } catch (\Exception $e) {
