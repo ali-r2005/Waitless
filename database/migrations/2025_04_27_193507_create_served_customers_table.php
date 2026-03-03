@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('served_customers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('queue_id')->constrained()->onDelete('set null');
+            $table->foreignId('queue_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->integer('waiting_time');
             $table->timestamps();
