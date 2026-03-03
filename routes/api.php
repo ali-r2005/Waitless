@@ -15,16 +15,8 @@ Route::middleware(['auth:api'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Routes accessible to business owners
-Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
-    // Staff management for business owners
-    Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_manager']);
-    Route::get('/branch-managers', [StaffController::class, 'branch_manager_list']);
-    Route::delete('/branch-managers/{user}', [StaffController::class, 'branch_manager_destroy']);
-});
-
 // Routes accessible to branch managers
-Route::middleware(['auth:api', 'role:branch_manager,business_owner'])->group(function () {
+Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
     // Limited staff management for branch managers
     Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
     Route::delete('/users/{user}/remove-from-staff', [StaffController::class, 'destroy']);
@@ -33,7 +25,7 @@ Route::middleware(['auth:api', 'role:branch_manager,business_owner'])->group(fun
 });
 
 // Queue routes - accessible based on role
-Route::middleware(['auth:api', 'role:staff,branch_manager,business_owner'])->group(function () {
+Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () {
     Route::get('/users/search', [StaffController::class, 'search']);
     Route::get('business', [BusinessController::class, 'index']);
     Route::apiResource('queues', QueueController::class);
