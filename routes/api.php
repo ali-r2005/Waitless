@@ -2,12 +2,10 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\RoleController;
-use App\Http\Controllers\Api\StaffController;
-use App\Http\Controllers\Api\BranchController;
-use App\Http\Controllers\Api\QueueController;
-use App\Http\Controllers\QueueManager; 
-use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\BusinessManagement\StaffController;
+use App\Http\Controllers\QueueManagement\QueueController;
+use App\Http\Controllers\QueueManagement\QueueManager; 
+use App\Http\Controllers\BusinessManagement\BusinessController;
 use Illuminate\Support\Facades\Broadcast;
 
 // Register the broadcasting routes with JWT authentication
@@ -19,11 +17,6 @@ Route::middleware(['auth:api'])->get('/user', function (Request $request) {
 
 // Routes accessible to business owners
 Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
-    // Branch management
-    Route::apiResource('branches', BranchController::class);
-    Route::get('/branches/{branch}/hierarchy', [BranchController::class, 'hierarchy']);
-    Route::post('/branches/{branch}/move-sub-branches', [BranchController::class, 'moveSubBranches']);
-    
     // Staff management for business owners
     Route::post('/users/{user}/branch-manager', [StaffController::class, 'branch_manager']);
     Route::get('/branch-managers', [StaffController::class, 'branch_manager_list']);
@@ -33,8 +26,6 @@ Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
 // Routes accessible to branch managers
 Route::middleware(['auth:api', 'role:branch_manager,business_owner'])->group(function () {
     // Limited staff management for branch managers
-    // Roles
-    Route::apiResource('roles', RoleController::class);
     Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
     Route::delete('/users/{user}/remove-from-staff', [StaffController::class, 'destroy']);
     Route::get('/staff', [StaffController::class, 'index']);
