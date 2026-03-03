@@ -1,24 +1,23 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\BusinessManagement;
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use App\Models\Business;
-use Illuminate\Http\Response;
-use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 class BusinessController extends Controller
 {
     public function index()
     {
-        try{
+        try {
             $user = auth()->user();
             $businesses = Business::where('id', $user->business_id)->get();
             return response()->json([
                 'status' => 'success',
                 'data' => $businesses
             ], Response::HTTP_OK);
-        }catch(\Exception $e){
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to get businesses',

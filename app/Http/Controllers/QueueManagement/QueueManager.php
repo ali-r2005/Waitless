@@ -8,7 +8,7 @@ use App\Models\Queue;
 use App\Models\QueueUser;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 use App\Notifications\NewMessageNotification;
 use App\Events\SendUpdate;
 use App\Models\ServedCustomer;
@@ -18,7 +18,7 @@ use App\Models\LatecomerQueue;
 
 class QueueManager extends Controller
 {
-    
+
     public function addCustomerToQueue(Request $request){
         try {
             $request->validate([
@@ -122,58 +122,58 @@ class QueueManager extends Controller
             $user = auth()->user();
             $today = Carbon::today();
             $tomorrow = Carbon::tomorrow();
-            
+
             // Base query for served customers
             $query = ServedCustomer::with('user', 'queue')
                 ->whereBetween('created_at', [$today, $tomorrow])
                 ->orderBy('created_at', 'desc');
-            
+
             // Filter based on user role
             if ($user->role === 'business_owner') {
                 // For business owner: get all served customers in the business
                 $businessId = $user->business_id;
-                
+
                 // Get all queues from all branches in the business
                 $branchIds = Branch::where('business_id', $businessId)->pluck('id');
                 $queueIds = Queue::whereIn('branch_id', $branchIds)->pluck('id');
-                
+
                 $query->whereIn('queue_id', $queueIds);
-                
+
                 $responseTitle = 'Business-wide Served Customers';
-                
+
             } elseif ($user->role === 'branch_manager') {
                 // For branch manager: get all served customers in their branch
                 $branchId = $user->branch_id;
-                
+
                 // Get all queues from the branch
                 $queueIds = Queue::where('branch_id', $branchId)->pluck('id');
-                
+
                 $query->whereIn('queue_id', $queueIds);
-                
+
                 $responseTitle = 'Branch Served Customers';
-                
+
             } elseif ($user->role === 'staff') {
                 // If a specific queue_id is provided
                 if ($request->has('queue_id')) {
                     $request->validate([
                         'queue_id' => 'required|exists:queues,id'
                     ]);
-                    
+
                     // Get the specific queue's served customers
                     $queue = Queue::find($request->queue_id);
                     $query->where('queue_id', $queue->id);
-                    
+
                     $responseTitle = 'Queue Served Customers';
                 } else {
                     // Get customers served by this staff member across all queues they manage
                     $staffUser = $user->staff;
                     $staffId = $staffUser->id;
-                    
+
                     // Find queues where this staff is assigned
                     $queueIds = Queue::where('staff_id', $staffId)->pluck('id');
-                    
+
                     $query->whereIn('queue_id', $queueIds);
-                    
+
                     $responseTitle = 'Staff Served Customers';
                 }
             } else {
@@ -181,82 +181,82 @@ class QueueManager extends Controller
                 $query->where('user_id', $user->id);
                 $responseTitle = 'Your Service History';
             }
-            
+
             // Execute the query
             $servedCustomers = $query->get();
-            
+
             // Calculate statistics
             $totalServed = $servedCustomers->count();
             $averageWaitingTime = $totalServed > 0 ? $servedCustomers->avg('waiting_time') : 0;
-            
+
             // Group statistics differently based on user role
             $statistics = [
                 'total_served' => $totalServed,
                 'average_waiting_time' => round($averageWaitingTime, 2),
                 'date' => $today->toDateString(),
             ];
-            
+
             if ($user->role === 'business_owner') {
                 // For business owner: group by branch and then by queue
                 $branchStats = [];
-                
+
                 // First group by branch
                 $branchQueues = [];
                 foreach ($servedCustomers as $customer) {
                     $queue = $customer->queue;
                     if (!$queue) continue;
-                    
+
                     $branchId = $queue->branch_id;
                     if (!isset($branchQueues[$branchId])) {
                         $branchQueues[$branchId] = [];
                     }
-                    
+
                     if (!isset($branchQueues[$branchId][$queue->id])) {
                         $branchQueues[$branchId][$queue->id] = [];
                     }
-                    
+
                     $branchQueues[$branchId][$queue->id][] = $customer;
                 }
-                
+
                 // Generate branch-level statistics
                 foreach ($branchQueues as $branchId => $queues) {
                     $branch = Branch::find($branchId);
                     if (!$branch) continue;
-                    
+
                     $branchCustomers = collect(array_merge(...array_values($queues)));
                     $queueStats = [];
-                    
+
                     // Generate queue-level statistics for this branch
                     foreach ($queues as $queueId => $customers) {
                         $queueCustomers = collect($customers);
                         $queue = Queue::find($queueId);
-                        
+
                         $queueStats[] = [
                             'queue_id' => $queueId,
                             'queue_name' => $queue ? $queue->name : 'Unknown Queue',
                             'total_served' => count($customers),
-                            'average_waiting_time' => $queueCustomers->count() > 0 ? 
+                            'average_waiting_time' => $queueCustomers->count() > 0 ?
                                 round($queueCustomers->avg('waiting_time'), 2) : 0,
                         ];
                     }
-                    
+
                     $branchStats[] = [
                         'branch_id' => $branchId,
                         'branch_name' => $branch->name,
                         'total_served' => $branchCustomers->count(),
-                        'average_waiting_time' => $branchCustomers->count() > 0 ? 
+                        'average_waiting_time' => $branchCustomers->count() > 0 ?
                             round($branchCustomers->avg('waiting_time'), 2) : 0,
                         'queues' => $queueStats
                     ];
                 }
-                
+
                 $statistics['branches'] = $branchStats;
-                
+
             } elseif ($user->role === 'branch_manager' || $user->role === 'staff') {
                 // For branch manager and staff: group by queue only
                 $queueStats = [];
                 $queueGroups = $servedCustomers->groupBy('queue_id');
-                
+
                 foreach ($queueGroups as $queueId => $customers) {
                     $queue = Queue::find($queueId);
                     $queueStats[] = [
@@ -266,10 +266,10 @@ class QueueManager extends Controller
                         'average_waiting_time' => round($customers->avg('waiting_time'), 2),
                     ];
                 }
-                
+
                 $statistics['queues'] = $queueStats;
             }
-            
+
             return response()->json([
                 'status' => 'success',
                 'title' => $responseTitle,
@@ -278,7 +278,7 @@ class QueueManager extends Controller
                     'statistics' => $statistics
                 ]
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -334,7 +334,7 @@ class QueueManager extends Controller
                 'user_id' => 'required|exists:users,id'
             ]);
             $queue = Queue::find($request->queue_id);
-            
+
             // Get the queue_user pivot record directly from the pivot table
             $pivot = \DB::table('queue_user')
                 ->where('queue_id', $queue->id)
@@ -343,28 +343,28 @@ class QueueManager extends Controller
 
             $servedAt = $pivot ? $pivot->served_at : null;
             Log::info('servedAt: ' . $servedAt);
-            
+
             // Mark the current time as completed_at
             $completedAt = now();
-            
+
             // Calculate waiting time in seconds between served_at and completed_at
             $waitingTimeInSeconds = Carbon::parse($servedAt)->diffInSeconds($completedAt);
             Log::info('waitingTimeInSeconds: ' . $waitingTimeInSeconds);
-            
+
             // Create the served customer record
             $servedCustomer = ServedCustomer::create([
                 'queue_id' => $queue->id,
                 'user_id' => $request->user_id,
                 'waiting_time' => $waitingTimeInSeconds
             ]);
-            
+
             // Detach the user from queue
             $queue->users()->detach($request->user_id);
             $this->normalizePositions($queue->id);
-            
+
             // Broadcast updated queue information to all remaining customers
             $this->broadcastQueueUpdates($queue->id);
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Customer served successfully',
@@ -382,7 +382,7 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     /**
      * Broadcast queue updates to all customers in a specific queue
      * 
@@ -393,44 +393,44 @@ class QueueManager extends Controller
     {
         try {
             $queue = Queue::findOrFail($queueId);
-            
+
             // Get all users in this queue ordered by their position time
             $queueUsers = $queue->users()
                 ->orderBy('position')
                 ->get(['users.id', 'users.name', 'users.phone', 'users.email', 'queue_user.ticket_number', 'queue_user.status', 'queue_user.position']);
-            
+
             if ($queueUsers->isEmpty()) {
                 return;
             }
-            
+
             // Queue length
             $queueLength = $queueUsers->count();
-            
+
             // Calculate N - the number of recent customers to consider
             $alpha = 0.5; // α is a fraction equal to 0.5
             $n = max(1, round($alpha * $queueLength)); // At least 1 customer
-            
+
             // Get the average waiting time from the most recent N served customers
             $recentServedCustomers = ServedCustomer::where('queue_id', $queueId)
                 ->latest()
                 ->take($n)
                 ->get();
-            
+
             // Default value if no served customers yet
             $averageServiceTimeInSeconds = 300; // Default 5 minutes per customer
-            
+
             if ($recentServedCustomers->isNotEmpty()) {
                 // The 'waiting_time' in ServedCustomer is actually the service time (time between served_at and completion)
                 $totalServiceTime = $recentServedCustomers->sum('waiting_time');
                 $averageServiceTimeInSeconds = $totalServiceTime / $recentServedCustomers->count();
-                
+
                 // Ensure we have a reasonable minimum value (at least 30 seconds)
                 $averageServiceTimeInSeconds = max(30, $averageServiceTimeInSeconds);
             }
-            
+
             // Find the current customer being served (first in queue or with status 'serving')
             $currentCustomer = $queueUsers->firstWhere('status', 'serving') ?? $queueUsers->first();
-            
+
             // Determine the queue state for UI display
             $queueState = 'active';
             if ($queue->is_paused) {
@@ -440,7 +440,7 @@ class QueueManager extends Controller
             } elseif (!$currentCustomer || $currentCustomer->status !== 'serving') {
                 $queueState = 'ready_to_call'; // Queue is active but no one is being served yet
             }
-            
+
             // Prepare data for staff and branch managers
             $staffQueueData = [
                 'queue_id' => $queueId,
@@ -466,10 +466,10 @@ class QueueManager extends Controller
                 ] : null,
                 'timestamp' => now()->toIso8601String()
             ];
-            
+
             // Broadcast update to staff and branch managers
             event(new \App\Events\StaffQueueUpdate($staffQueueData));
-            
+
             // For each customer in the queue, broadcast their position and estimated wait time
             foreach ($queueUsers as $index => $user) {
                 // Calculate position (0 for current customer)
@@ -479,10 +479,10 @@ class QueueManager extends Controller
                         return $item->id === $user->id;
                     });
                 }
-                
+
                 // Calculate estimated waiting time based on position and average service time
                 $estimatedWaitingTime = 0;
-                
+
                 // If queue is paused, waiting time is indefinite (represented by -1)
                 if ($queue->is_paused) {
                     $estimatedWaitingTime = -1;
@@ -505,11 +505,11 @@ class QueueManager extends Controller
                         }
                     }
                 }
-                
+
                 // Get remaining customers count
                 $customersAhead = $position;
                 $totalCustomers = $queueUsers->count();
-                
+
                 // Prepare the update data
                 $update = [
                     'type' => 'queue_update',
@@ -531,12 +531,12 @@ class QueueManager extends Controller
                         'total_customers' => $totalCustomers
                     ]
                 ];
-                
+
                 // Broadcast the update to this specific user
                 event(new SendUpdate($update));
                 Log::info('The average service time is ' . $averageServiceTimeInSeconds . ' seconds');
             }
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to broadcast queue updates: ' . $e->getMessage());
         }
@@ -558,7 +558,7 @@ class QueueManager extends Controller
                 'message' => 'Next customer called successfully',
                 'data' => $nextCustomer
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to call next customer: ' . $e->getMessage());
             return response()->json([
@@ -567,7 +567,7 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
- 
+
     public function lateCustomer(Request $request){
         try {
             $request->validate([
@@ -607,7 +607,7 @@ class QueueManager extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => $users
-            ], Response::HTTP_OK);  
+            ], Response::HTTP_OK);
         } catch (\Exception $e) {
             Log::error('Failed to get late customers: ' . $e->getMessage());
             return response()->json([
@@ -633,19 +633,19 @@ class QueueManager extends Controller
             $queue->users()->updateExistingPivot($request->user_id, [
                 'status' => 'waiting'
             ]);
-            
+
             // Get the queue_user record
             $queueUser = QueueUser::where('queue_id', $request->queue_id)
                 ->where('user_id', $request->user_id)
                 ->first();
-                
+
             if ($queueUser) {
                 // Create a new request with the new_position parameter
                 $moveRequest = new Request();
                 $moveRequest->merge(['new_position' => $request->position]);
                 $this->move($moveRequest, $queueUser->id);
             }
-            
+
             $this->normalizePositions($queue->id);
             $this->broadcastQueueUpdates($queue->id);
             return response()->json([
@@ -660,7 +660,7 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     /**
      * Pause a queue
      * 
@@ -674,9 +674,9 @@ class QueueManager extends Controller
                 'queue_id' => 'required|exists:queues,id',
                 'reason' => 'nullable|string|max:255'
             ]);
-            
+
             $queue = Queue::findOrFail($request->queue_id);
-            
+
             // Only active queues can be paused
             if (!$queue->is_active) {
                 return response()->json([
@@ -684,7 +684,7 @@ class QueueManager extends Controller
                     'message' => 'Cannot pause an inactive queue'
                 ], Response::HTTP_BAD_REQUEST);
             }
-            
+
             // If already paused, return success but with a message
             if ($queue->is_paused) {
                 return response()->json([
@@ -692,23 +692,23 @@ class QueueManager extends Controller
                     'message' => 'Queue is already paused'
                 ], Response::HTTP_OK);
             }
-            
+
             // Pause the queue
             $queue->is_paused = true;
             $queue->save();
-            
+
             // Broadcast the pause status to all customers in the queue
             $this->broadcastQueueUpdates($queue->id);
-            
+
             // Log the pause action
             $reason = $request->reason ?? 'No reason provided';
             Log::info("Queue {$queue->name} (ID: {$queue->id}) paused. Reason: {$reason}");
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Queue paused successfully'
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to pause queue: ' . $e->getMessage());
             return response()->json([
@@ -717,7 +717,7 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     /**
      * Resume a paused queue
      * 
@@ -730,9 +730,9 @@ class QueueManager extends Controller
             $request->validate([
                 'queue_id' => 'required|exists:queues,id'
             ]);
-            
+
             $queue = Queue::findOrFail($request->queue_id);
-            
+
             // Only paused queues can be resumed
             if (!$queue->is_paused) {
                 return response()->json([
@@ -740,22 +740,22 @@ class QueueManager extends Controller
                     'message' => 'Queue is not paused'
                 ], Response::HTTP_OK);
             }
-            
+
             // Resume the queue
             $queue->is_paused = false;
             $queue->save();
-            
+
             // Broadcast the resumed status to all customers in the queue
             $this->broadcastQueueUpdates($queue->id);
-            
+
             // Log the resume action
             Log::info("Queue {$queue->name} (ID: {$queue->id}) resumed");
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Queue resumed successfully'
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to resume queue: ' . $e->getMessage());
             return response()->json([
@@ -764,5 +764,5 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
 }

@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\QueueManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\Queue;
 use App\Models\Branch;
 use App\Models\Staff;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +23,7 @@ class QueueController extends Controller
         try {
             $user = Auth::user();
             $query = Queue::query();
-            
+
             // Apply role-based filters
             switch ($user->role) {
                 case 'staff':
@@ -37,7 +37,7 @@ class QueueController extends Controller
                     }
                     $query->where('staff_id', $staffId);
                     break;
-                    
+
                 case 'branch_manager':
                     // Branch managers can see all queues in their branch
                     if (!$user->branch_id) {
@@ -48,7 +48,7 @@ class QueueController extends Controller
                     }
                     $query->where('branch_id', $user->branch_id);
                     break;
-                    
+
                 case 'business_owner':
                     // Business owners can see all queues in their business
                     if (!$user->business_id) {
@@ -57,31 +57,31 @@ class QueueController extends Controller
                             'message' => 'Business not assigned to user'
                         ], Response::HTTP_BAD_REQUEST);
                     }
-                    
+
                     // Get all branches for this business
                     $branchIds = Branch::where('business_id', $user->business_id)
                         ->pluck('id')
                         ->toArray();
-                        
+
                     $query->whereIn('branch_id', $branchIds);
                     break;
-                    
+
                 default:
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Unauthorized role'
                     ], Response::HTTP_FORBIDDEN);
             }
-            
+
             // Add any filters from request
             if ($request->has('branch_id')) {
                 $query->where('branch_id', $request->branch_id);
             }
-            
+
             if ($request->has('is_active')) {
                 $query->where('is_active', $request->is_active);
             }
-            
+
             $queues = $query->with(['branch', 'staff','users'])->get();
             $latecomerQueues = LatecomerQueue::all();
             return response()->json([
@@ -89,10 +89,10 @@ class QueueController extends Controller
                 'data' => $queues,
                 'latecomer_queues' => $latecomerQueues
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Queue listing failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to retrieve queues: ' . $e->getMessage()
@@ -107,7 +107,7 @@ class QueueController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'scheduled_date' => 'nullable|date',
@@ -115,7 +115,7 @@ class QueueController extends Controller
                 'start_time' => 'nullable|date_format:H:i',
                 'preferences' => 'nullable|json'
             ]);
-            
+
             // Check if user has permission to create queue for this branch
             switch ($user->role) {
                 case 'staff':
@@ -130,22 +130,22 @@ class QueueController extends Controller
                     $validatedData['staff_id'] = $staff->id;
                     $validatedData['branch_id'] = $user->branch_id;
                     break;
-                    
+
                 case 'branch_manager':
-                        $staff = Staff::where('user_id', $user->id)->first();
-                        if ($staff) {
-                            $validatedData['staff_id'] = $staff->id;
-                            $validatedData['branch_id'] = $user->branch_id;
-                        }
+                    $staff = Staff::where('user_id', $user->id)->first();
+                    if ($staff) {
+                        $validatedData['staff_id'] = $staff->id;
+                        $validatedData['branch_id'] = $user->branch_id;
+                    }
                     break;
-                    
+
                 default:
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Unauthorized role'
                     ], Response::HTTP_FORBIDDEN);
             }
-            
+
             $queue = Queue::create($validatedData);
             $latecomerQueue = LatecomerQueue::create(['queue_id' => $queue->id]);
             return response()->json([
@@ -153,17 +153,17 @@ class QueueController extends Controller
                 'message' => 'Queue created successfully',
                 'data' => $queue
             ], Response::HTTP_CREATED);
-            
+
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            
+
         } catch (\Exception $e) {
             Log::error('Queue creation failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to create queue: ' . $e->getMessage()
@@ -179,16 +179,16 @@ class QueueController extends Controller
         try {
             // Load the queue with all necessary relationships and pivot data
             $queue = Queue::with(['branch', 'staff', 'users'])->find($id);
-            
+
             if (!$queue) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Queue not found'
                 ], Response::HTTP_NOT_FOUND);
             }
-            
+
             $user = Auth::user();
-            
+
             // Check if user has permission to view this queue
             switch ($user->role) {
                 case 'staff':
@@ -201,7 +201,7 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 case 'branch_manager':
                     // Branch managers can view any queue in their branch
                     if ($queue->branch_id != $user->branch_id) {
@@ -211,7 +211,7 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 case 'business_owner':
                     // Business owners can view any queue in their business
                     $branch = Branch::find($queue->branch_id);
@@ -222,23 +222,23 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 default:
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Unauthorized role'
                     ], Response::HTTP_FORBIDDEN);
             }
-            
+
             return response()->json([
                 'status' => 'success',
                 'data' => $queue,
                 'latecomer_queues' => $queue->latecomerQueue
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Queue retrieval failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to retrieve queue: ' . $e->getMessage()
@@ -253,16 +253,16 @@ class QueueController extends Controller
     {
         try {
             $queue = Queue::find($id);
-            
+
             if (!$queue) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Queue not found'
                 ], Response::HTTP_NOT_FOUND);
             }
-            
+
             $user = Auth::user();
-            
+
             // Check if user has permission to update this queue
             switch ($user->role) {
                 case 'staff':
@@ -275,7 +275,7 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 case 'branch_manager':
                     // Branch managers can update any queue in their branch
                     if ($queue->branch_id != $user->branch_id) {
@@ -285,14 +285,14 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 default:
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Unauthorized role'
                     ], Response::HTTP_FORBIDDEN);
             }
-            
+
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:255',
                 'scheduled_date' => 'nullable|date',
@@ -300,25 +300,25 @@ class QueueController extends Controller
                 'start_time' => 'nullable|date_format:H:i',
                 'preferences' => 'nullable|json'
             ]);
-            
+
             $queue->update($validatedData);
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Queue updated successfully',
                 'data' => $queue->fresh()
             ], Response::HTTP_OK);
-            
+
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            
+
         } catch (\Exception $e) {
             Log::error('Queue update failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to update queue: ' . $e->getMessage()
@@ -333,16 +333,16 @@ class QueueController extends Controller
     {
         try {
             $queue = Queue::find($id);
-            
+
             if (!$queue) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Queue not found'
                 ], Response::HTTP_NOT_FOUND);
             }
-            
+
             $user = Auth::user();
-            
+
             // Check if user has permission to delete this queue
             switch ($user->role) {
                 case 'staff':
@@ -355,7 +355,7 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 case 'branch_manager':
                     // Branch managers can delete any queue in their branch
                     if ($queue->branch_id != $user->branch_id) {
@@ -365,24 +365,24 @@ class QueueController extends Controller
                         ], Response::HTTP_FORBIDDEN);
                     }
                     break;
-                    
+
                 default:
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Unauthorized role'
                     ], Response::HTTP_FORBIDDEN);
             }
-            
+
             $queue->delete();
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Queue deleted successfully'
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             Log::error('Queue deletion failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to delete queue: ' . $e->getMessage()
