@@ -15,6 +15,7 @@ use App\Models\ServedCustomer;
 use Carbon\Carbon;
 use App\Services\QueueManagerService;
 use App\Services\QueueService;
+use Illuminate\Validation\ValidationException;
 
 class QueueManager extends Controller
 {
@@ -40,7 +41,14 @@ class QueueManager extends Controller
                 'status' => 'success',
                 'message' => 'Customer added to queue successfully'
             ], Response::HTTP_OK);
-        } catch (\Exception $e) {
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }    
+        catch (\Exception $e) {
             Log::error('Failed to add customer to queue: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
@@ -56,12 +64,19 @@ class QueueManager extends Controller
             ]);
             $queue = Queue::find($request->queue_id);
             $queue->users()->detach($request->user_id);
-            $this->normalizePositions($request->queue_id);
-            $this->broadcastQueueUpdates($queue->id);
+            $this->queueService->normalizePositions($request->queue_id);
+            $this->queueService->broadcastQueueUpdates($queue->id);
             return response()->json([
                 'status' => 'success',
                 'message' => 'Customer removed from queue successfully'
             ], Response::HTTP_OK);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to remove customer from queue: ' . $e->getMessage());
             return response()->json([
@@ -293,7 +308,7 @@ class QueueManager extends Controller
                 'queue_id' => 'required|exists:queues,id'
             ]);
             $queue = Queue::find($request->queue_id);
-            $customers = $queue->users()->orderBy('position')->get();
+            $customers = $queue->users()->where('status', 'waiting')->orWhere('status', 'serving')->orderBy('position')->get();
             return response()->json([
                 'status' => 'success',
                 'data' => $customers
@@ -328,6 +343,7 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
     public function completeServing(Request $request){
         try {
             $request->validate([
@@ -361,10 +377,10 @@ class QueueManager extends Controller
 
             // Detach the user from queue
             $queue->users()->detach($request->user_id);
-            $this->normalizePositions($queue->id);
+            $this->queueService->normalizePositions($queue->id);
 
             // Broadcast updated queue information to all remaining customers
-            $this->broadcastQueueUpdates($queue->id);
+            $this->queueService->broadcastQueueUpdates($queue->id);
 
             return response()->json([
                 'status' => 'success',
@@ -375,6 +391,12 @@ class QueueManager extends Controller
                     'completed_at' => $completedAt
                 ]
             ], Response::HTTP_OK);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to complete serving: ' . $e->getMessage());
             return response()->json([
@@ -579,11 +601,7 @@ class QueueManager extends Controller
             $queue->users()->updateExistingPivot($request->user_id, [
                 'status' => 'late'
             ]);
-            $latecomerQueue = $queue->latecomerQueue;
-            if ($latecomerQueue) {
-                $latecomerQueue->users()->attach($request->user_id);
-            }
-            $this->broadcastQueueUpdates($queue->id);
+            $this->queueService->broadcastQueueUpdates($queue->id);
             //send notification to the customer
             $user = User::find($request->user_id);
             $user->notify(new NewMessageNotification('You have been marked as late in the queue ' . $queue->name));
@@ -591,8 +609,18 @@ class QueueManager extends Controller
                 'status' => 'success',
                 'message' => 'Customer marked as late successfully'
             ], Response::HTTP_OK);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to mark customer as late: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to mark customer as late'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     public function getLateCustomers(Request $request){
@@ -601,14 +629,17 @@ class QueueManager extends Controller
                 'queue_id' => 'required|exists:queues,id'
             ]);
             $queue = Queue::find($request->queue_id);
-            $latecomerQueue = $queue->latecomerQueue;
-            if ($latecomerQueue) {
-                $users = $latecomerQueue->users()->get();
-            }
+            $users = $queue->users()->where('status', 'late')->get();
             return response()->json([
                 'status' => 'success',
                 'data' => $users
             ], Response::HTTP_OK);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to get late customers: ' . $e->getMessage());
             return response()->json([
@@ -627,10 +658,6 @@ class QueueManager extends Controller
                 'position' => 'required|integer'
             ]);
             $queue = Queue::find($request->queue_id);
-            $latecomerQueue = $queue->latecomerQueue;
-            if ($latecomerQueue) {
-                $latecomerQueue->users()->detach($request->user_id);
-            }
             $queue->users()->updateExistingPivot($request->user_id, [
                 'status' => 'waiting'
             ]);
@@ -653,6 +680,12 @@ class QueueManager extends Controller
                 'status' => 'success',
                 'message' => 'Customer reinserted in the queue successfully'
             ], Response::HTTP_OK);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to reinsert customer in the queue: ' . $e->getMessage());
             return response()->json([
@@ -709,7 +742,12 @@ class QueueManager extends Controller
                 'status' => 'success',
                 'message' => 'Queue paused successfully'
             ], Response::HTTP_OK);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to pause queue: ' . $e->getMessage());
             return response()->json([
@@ -756,7 +794,12 @@ class QueueManager extends Controller
                 'status' => 'success',
                 'message' => 'Queue resumed successfully'
             ], Response::HTTP_OK);
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             Log::error('Failed to resume queue: ' . $e->getMessage());
             return response()->json([

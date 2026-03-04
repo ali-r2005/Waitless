@@ -8,6 +8,9 @@ class QueueUser extends Pivot
 {
     protected $table = 'queue_user';
 
+    public $incrementing = true;
+    protected $primaryKey = 'id';
+
     protected $fillable = [
         'queue_id',
         'user_id',
