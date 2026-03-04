@@ -13,9 +13,12 @@ use App\Notifications\NewMessageNotification;
 use App\Events\SendUpdate;
 use App\Models\ServedCustomer;
 use Carbon\Carbon;
+use App\Services\QueueManagerService;
+use App\Services\QueueService;
 
 class QueueManager extends Controller
 {
+    public function __construct(private QueueManagerService $queueManagerService, private QueueService $queueService) {}
 
     public function addCustomerToQueue(Request $request){
         try {
