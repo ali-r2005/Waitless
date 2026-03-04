@@ -12,7 +12,6 @@ use Symfony\Component\HttpFoundation\Response;
 use App\Notifications\NewMessageNotification;
 use App\Events\SendUpdate;
 use App\Models\ServedCustomer;
-use App\Models\Branch;
 use Carbon\Carbon;
 
 class QueueManager extends Controller
