@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Queue;
 use App\Models\QueueUser;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use App\Notifications\NewMessageNotification;
@@ -15,7 +14,6 @@ use App\Events\SendUpdate;
 use App\Models\ServedCustomer;
 use App\Models\Branch;
 use Carbon\Carbon;
-use App\Models\LatecomerQueue;
 
 class QueueManager extends Controller
 {
