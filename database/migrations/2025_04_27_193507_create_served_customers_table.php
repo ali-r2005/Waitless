@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('queue_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->integer('waiting_time');
+            $table->float('waiting_time');
             $table->timestamps();
         });
     }

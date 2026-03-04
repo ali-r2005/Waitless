@@ -9,11 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use App\Models\Queue;
 use App\Models\Business;
-use App\Models\Branch;
-use App\Models\Staff;
-use App\Models\LatecomerQueue;
 use App\Models\QueueUser;
-use App\Models\LatecomerQueueUser;
 use App\Models\ServedCustomer;
 class User extends Authenticatable implements JWTSubject
 {
@@ -61,11 +57,6 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Business::class);
     }
 
-    public function branch()
-    {
-        return $this->belongsTo(Branch::class);
-    }
-
     /**
      * Get the attributes that should be cast.
      *
@@ -78,21 +69,12 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
         ];
     }
-    public function staff(){
-
-    return $this->hasOne(Staff::class);
-    }
 
     public function queues()
     {
         return $this->belongsToMany(Queue::class)
             ->using(QueueUser::class)
             ->withPivot('status', 'ticket_number', 'served_at', 'late_at', 'position');
-    }
-
-    public function latecomerQueues()
-    {
-        return $this->belongsToMany(LatecomerQueue::class)->using(LatecomerQueueUser::class);
     }
 
     public function servedCustomers()

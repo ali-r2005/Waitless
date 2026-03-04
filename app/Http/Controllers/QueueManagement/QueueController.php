@@ -4,8 +4,6 @@ namespace App\Http\Controllers\QueueManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\Queue;
-use App\Models\Branch;
-use App\Models\Staff;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;

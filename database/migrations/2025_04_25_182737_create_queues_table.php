@@ -13,11 +13,12 @@ return new class extends Migration
     {
         Schema::create('queues', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->onDelete('cascade');
-            $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade');
+            $table->foreignId('business_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->date('scheduled_date');
             $table->boolean('is_active')->default(false);
+            $table->boolean('is_paused')->default(false);
             $table->time('start_time');
             $table->json('preferences')->nullable();
             $table->timestamps();
