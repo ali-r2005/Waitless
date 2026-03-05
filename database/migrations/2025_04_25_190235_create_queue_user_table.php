@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('queue_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->integer('position')->nullable();
-            $table->enum('status', ['waiting','late','serving'])->default('waiting');
+            $table->enum('status', ['waiting','late','serving', 'served', 'cancelled'])->default('waiting');
             $table->string('ticket_number')->nullable();
             $table->timestamp('served_at')->nullable();
             $table->timestamp('late_at')->nullable();
