@@ -35,6 +35,7 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
         // Customer queue operations
         Route::post('/{queue}/users/{user}', [QueueManager::class, 'addCustomerToQueue']);
         Route::delete('/{queue}/users/{user}', [QueueManager::class, 'removeCustomerFromQueue']);
+        Route::get('/{queue}/users', [QueueManager::class, 'getQueueCustomers']);
        
     });
 });

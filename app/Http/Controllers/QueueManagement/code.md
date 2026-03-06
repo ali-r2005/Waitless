@@ -1,43 +1,6 @@
-    public function normalizePositions($queueId)
-    {
-        $customers = QueueUser::where('queue_id', $queueId)
-            ->orderBy('position')
-            ->get();
-
-        foreach ($customers as $index => $customer) {
-            $customer->position = $index + 1;
-            $customer->save();
-        }
-    }
 
     //PATCH /api/queue-customers/{id}/move
     //BODY: { "new_position": 3 }
-    public function move(Request $request, $id)
-    {
-        $customer = QueueUser::findOrFail($id);
-        $queueId = $customer->queue_id;
-        $newPosition = (int) $request->input('new_position');
-
-        \DB::transaction(function () use ($customer, $newPosition, $queueId) {
-            if ($newPosition < $customer->position) {
-                // Moving up: push down others
-                QueueUser::where('queue_id', $queueId)
-                    ->whereBetween('position', [$newPosition, $customer->position - 1])
-                    ->increment('position');
-            } elseif ($newPosition > $customer->position) {
-                // Moving down: pull up others
-                QueueUser::where('queue_id', $queueId)
-                    ->whereBetween('position', [$customer->position + 1, $newPosition])
-                    ->decrement('position');
-            }
-
-            // Finally, set the new position
-            $customer->position = $newPosition;
-            $customer->save();
-        });
-
-        return response()->json(['message' => 'Customer moved successfully.']);
-    }
 
     /**
      * Get customers served today with statistics based on user role
@@ -215,25 +178,12 @@
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function getQueueCustomers(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $customers = $queue->users()->where('status', 'waiting')->orWhere('status', 'serving')->orderBy('position')->get();
-            return response()->json([
-                'status' => 'success',
-                'data' => $customers
-            ], Response::HTTP_OK);
-        } catch (\Exception $e) {
-            Log::error('Failed to get queue customers: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to get queue customers'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+    
+
+
+
+
+    
     public function activateQueue(Request $request){
         try {
             $request->validate([

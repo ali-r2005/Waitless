@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Services;
-use App\Models\QueueUser; 
+
+use App\Models\QueueUser;
+use Illuminate\Support\Facades\DB;
 
 class QueueService
 {
@@ -16,6 +18,31 @@ class QueueService
             $customer->position = $index + 1;
             $customer->save();
         }
+    }
+    public function move($newPosition, $id)
+    {
+        $customer = QueueUser::findOrFail($id);
+        $queueId = $customer->queue_id;
+
+        DB::transaction(function () use ($customer, $newPosition, $queueId) {
+            if ($newPosition < $customer->position) {
+                // Moving up: push down others
+                QueueUser::where('queue_id', $queueId)
+                    ->whereBetween('position', [$newPosition, $customer->position - 1])
+                    ->increment('position');
+            } elseif ($newPosition > $customer->position) {
+                // Moving down: pull up others
+                QueueUser::where('queue_id', $queueId)
+                    ->whereBetween('position', [$customer->position + 1, $newPosition])
+                    ->decrement('position');
+            }
+
+            // Finally, set the new position
+            $customer->position = $newPosition;
+            $customer->save();
+        });
+
+        return ['message' => 'Customer moved successfully.'];
     }
 
     //   public function broadcastQueueUpdates($queueId)

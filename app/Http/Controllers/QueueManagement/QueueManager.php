@@ -38,9 +38,13 @@ class QueueManager extends Controller
         }
     }
 
-     public function removeCustomerFromQueue(Request $request){
+     public function removeCustomerFromQueue(Queue $queue, User $user){
         try {
-            
+            $this->queueManagerService->removecustumer($queue, $user);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Customer removed from queue successfully'
+            ], Response::HTTP_OK);
         } catch (\Exception $e) {
             Log::error('Failed to remove customer from queue: ' . $e->getMessage());
             return response()->json([
@@ -49,4 +53,20 @@ class QueueManager extends Controller
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+    public function getQueueCustomers(Queue $queue){
+        try {
+            $customers = $queue->users()->where('status', 'waiting')->orWhere('status', 'serving')->orderBy('position')->get();
+            return response()->json([
+                'status' => 'success',
+                'data' => $customers
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            Log::error('Failed to get queue customers: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to get queue customers'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
 }
