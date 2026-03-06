@@ -38,10 +38,10 @@ class QueueManager extends Controller
         }
     }
 
-    public function removeCustomerFromQueue(Queue $queue, User $user)
+    public function removeCustomerFromQueue(QueueUser $queueUser)
     {
         try {
-            $this->queueManagerService->removecustumer($queue, $user);
+            $this->queueManagerService->removecustumer($queueUser);
             return response()->json([
                 'status' => 'success',
                 'message' => 'Customer removed from queue successfully'
@@ -132,10 +132,37 @@ class QueueManager extends Controller
         }
     }
 
-    public function markCustomerAsLate(Queue $queue, User $user)
+    public function moveCustomer(Request $request, QueueUser $queueUser)
     {
         try {
-            $this->queueManagerService->markCustomerAsLate($queue, $user);
+            $request->validate([
+                'new_position' => 'required|integer|min:1'
+            ]);
+            $this->queueService->move($request->new_position, $queueUser->id);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Customer moved successfully'
+            ], Response::HTTP_OK);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], \Symfony\Component\HttpFoundation\Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Exception $e) {
+            Log::error('Failed to move customer: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to move customer'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function markCustomerAsLate(QueueUser $queueUser)
+    {
+        try {
+            $this->queueManagerService->markCustomerAsLate($queueUser);
             return response()->json([
                 'status' => 'success',
                 'message' => 'Customer marked as late successfully'
@@ -145,6 +172,51 @@ class QueueManager extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to mark customer as late'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function reinsertCustomer(Request $request, QueueUser $queueUser)
+    {
+        try {
+            $request->validate([
+                'position' => 'required|integer|min:1'
+            ]);
+
+            $this->queueManagerService->reinsertCustomer($queueUser, $request->position);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Customer reinserted successfully'
+            ], Response::HTTP_OK);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], \Symfony\Component\HttpFoundation\Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Exception $e) {
+            Log::error('Failed to reinsert customer: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function cancelCustomer(QueueUser $queueUser)
+    {
+        try {
+            $this->queueManagerService->cancelCustomer($queueUser);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Customer canceled successfully'
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel customer: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

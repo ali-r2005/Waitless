@@ -343,63 +343,10 @@
 
 
 
-    public function lateCustomer(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id',
-                'user_id' => 'required|exists:users,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $queue->users()->updateExistingPivot($request->user_id, [
-                'status' => 'late'
-            ]);
-            $this->queueService->broadcastQueueUpdates($queue->id);
-            //send notification to the customer
-            $user = User::find($request->user_id);
-            $user->notify(new NewMessageNotification('You have been marked as late in the queue ' . $queue->name));
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Customer marked as late successfully'
-            ], Response::HTTP_OK);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Exception $e) {
-            Log::error('Failed to mark customer as late: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to mark customer as late'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-    public function getLateCustomers(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $users = $queue->users()->where('status', 'late')->get();
-            return response()->json([
-                'status' => 'success',
-                'data' => $users
-            ], Response::HTTP_OK);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Exception $e) {
-            Log::error('Failed to get late customers: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to get late customers'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+    
+
+
+
 
     public function reinsertCustomer(Request $request){
         try{

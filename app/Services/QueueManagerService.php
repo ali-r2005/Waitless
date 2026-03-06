@@ -25,12 +25,13 @@ class QueueManagerService
          ]);
          $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
     }
-    public function removecustumer(Queue $queue, User $user){
-        if(!$queue->users()->where('queue_id', $queue->id)->where('user_id', $user->id)->where('status', 'waiting')->exists()){
-            throw new \Exception('User is not in the queue');
+    public function removecustumer(QueueUser $queueUser){
+        if($queueUser->status !== 'waiting'){
+            throw new \Exception('User is not waiting in the queue');
         }
-        $queue->users()->detach($user->id);
-        $this->queueService->normalizePositions($queue->id);
+        $queueId = $queueUser->queue_id;
+        $queueUser->delete();
+        $this->queueService->normalizePositions($queueId);
         //here an notification for all users about there new position after the change
     }
     
@@ -59,18 +60,51 @@ class QueueManagerService
         // $this->broadcastQueueUpdates($queue->id);
     }
 
-    public function markCustomerAsLate(Queue $queue, User $user){
-        $exists = $queue->users()->where('user_id', $user->id)->exists();
-        if(!$exists) {
-            throw new \Exception('User is not in the queue');
-        }
-
-        $queue->users()->updateExistingPivot($user->id, [
+    public function markCustomerAsLate(QueueUser $queueUser){
+        $queueId = $queueUser->queue_id;
+        $queueUser->update([
             'status' => 'late',
-            'late_at' => now()
+            'late_at' => now(),
+            'position' => null
         ]);
 
         // Normalize positions since the user is no longer 'waiting'
-        $this->queueService->normalizePositions($queue->id);
+        $this->queueService->normalizePositions($queueId);
+    }
+
+    public function reinsertCustomer(QueueUser $queueUser, $position){
+        if ($queueUser->status !== 'late') {
+            throw new \Exception('Only late customers can be reinserted');
+        }
+
+        $queueId = $queueUser->queue_id;
+
+        // Step 1: Place the customer back at the end of the waiting queue
+        $maxPosition = QueueUser::where('queue_id', $queueId)
+            ->where('status', 'waiting')
+            ->max('position') ?? 0;
+
+        $queueUser->status = 'waiting';
+        $queueUser->position = $maxPosition + 1;
+        $queueUser->late_at = null;
+        $queueUser->save();
+
+        // Step 2: Use move() to shift them to the desired position,
+        // which handles pushing other customers down correctly.
+        $this->queueService->move($position, $queueUser->id);
+    }
+
+    public function cancelCustomer(QueueUser $queueUser){
+        if (in_array($queueUser->status, ['served', 'canceled'])) {
+            throw new \Exception('Cannot cancel a customer who is already served or canceled');
+        }
+        
+        $queueId = $queueUser->queue_id;
+        $queueUser->update([
+            'status' => 'canceled',
+            'position' => null
+        ]);
+
+        $this->queueService->normalizePositions($queueId);
     }
 }

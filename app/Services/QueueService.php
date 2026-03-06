@@ -25,20 +25,41 @@ class QueueService
         $customer = QueueUser::findOrFail($id);
         $queueId = $customer->queue_id;
 
-        DB::transaction(function () use ($customer, $newPosition, $queueId) {
+        // Active statuses that still hold a position in the queue
+        $activeStatuses = ['waiting', 'serving'];
+
+        // Early exit: nothing to do if position is unchanged
+        if ($newPosition === $customer->position) {
+            return;
+        }
+
+        // Clamp to valid bounds: can't go below 1 or beyond the total active queue size
+        $queueSize = QueueUser::where('queue_id', $queueId)
+            ->whereIn('status', $activeStatuses)
+            ->count();
+        $newPosition = max(1, min($newPosition, $queueSize));
+
+        // Another early exit after clamping
+        if ($newPosition === $customer->position) {
+            return;
+        }
+
+        DB::transaction(function () use ($customer, $newPosition, $queueId, $activeStatuses) {
             if ($newPosition < $customer->position) {
-                // Moving up: push down others
+                // Moving up: push others down
                 QueueUser::where('queue_id', $queueId)
+                    ->whereIn('status', $activeStatuses)
                     ->whereBetween('position', [$newPosition, $customer->position - 1])
                     ->increment('position');
-            } elseif ($newPosition > $customer->position) {
-                // Moving down: pull up others
+            } else {
+                // Moving down: pull others up
                 QueueUser::where('queue_id', $queueId)
+                    ->whereIn('status', $activeStatuses)
                     ->whereBetween('position', [$customer->position + 1, $newPosition])
                     ->decrement('position');
             }
 
-            // Finally, set the new position
+            // Set the customer's new position
             $customer->position = $newPosition;
             $customer->save();
         });

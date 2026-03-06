@@ -34,8 +34,11 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
     Route::prefix('queues')->group(function () {
         // Customer queue operations
         Route::post('/{queue}/users/{user}', [QueueManager::class, 'addCustomerToQueue']);
-        Route::delete('/{queue}/users/{user}', [QueueManager::class, 'removeCustomerFromQueue']);
-        Route::put('/{queue}/users/{user}/mark-late', [QueueManager::class, 'markCustomerAsLate']);
+        Route::delete('/queue-users/{queueUser}', [QueueManager::class, 'removeCustomerFromQueue']);
+        Route::put('/queue-users/{queueUser}/mark-late', [QueueManager::class, 'markCustomerAsLate']);
+        Route::put('/queue-users/{queueUser}/reinsert', [QueueManager::class, 'reinsertCustomer']);
+        Route::put('/queue-users/{queueUser}/move', [QueueManager::class, 'moveCustomer']);
+        Route::put('/queue-users/{queueUser}/cancel', [QueueManager::class, 'cancelCustomer']);
         Route::get('/{queue}/users', [QueueManager::class, 'getQueueCustomers']);
         Route::put('/{queue}/activate', [QueueManager::class,'activateQueue']);
         Route::put('/{queue}/call-next', [QueueManager::class,'callNextCustomer']);
