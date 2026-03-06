@@ -87,10 +87,15 @@ class QueueController extends Controller
                 'preferences' => 'nullable|json'
             ]);
 
-            if($user->role == 'business_owner' || $user->role == 'staff') {
-                $validatedData['business_id'] = $user->business_id;
-                $validatedData['user_id'] = $user->id;
+            if($user->role !== 'business_owner' && $user->role !== 'staff') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized role'
+                ], Response::HTTP_FORBIDDEN);
             }
+
+            $validatedData['business_id'] = $user->business_id;
+            $validatedData['user_id'] = $user->id;
 
             $queue = Queue::create($validatedData);
             return response()->json([

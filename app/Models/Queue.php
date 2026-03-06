@@ -10,16 +10,25 @@ use App\Models\ServedCustomer;
 class Queue extends Model
 {
     protected $fillable = [
-        'branch_id',
-        'staff_id',
+        'business_id',
+        'user_id',
         'name',
         'scheduled_date',
         'is_active',
-        'auto_activate',
         'is_paused',
         'start_time',
         'preferences'
     ];
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function servedCustomers()
     {
@@ -30,7 +39,7 @@ class Queue extends Model
     {
         return $this->belongsToMany(User::class)
             ->using(QueueUser::class)
-            ->withPivot('status', 'ticket_number', 'served_at', 'late_at', 'position');
+            ->withPivot('status', 'ticket_number', 'served_at', 'start_serving_at', 'late_at', 'position');
     }
     
 }

@@ -16,10 +16,10 @@ return new class extends Migration
             $table->foreignId('business_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name');
-            $table->date('scheduled_date');
+            $table->date('scheduled_date')->nullable();
             $table->boolean('is_active')->default(false);
             $table->boolean('is_paused')->default(false);
-            $table->time('start_time');
+            $table->time('start_time')->nullable();
             $table->json('preferences')->nullable();
             $table->timestamps();
         });
