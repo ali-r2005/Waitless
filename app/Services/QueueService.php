@@ -19,6 +19,7 @@ class QueueService
             $customer->save();
         }
     }
+
     public function move($newPosition, $id)
     {
         $customer = QueueUser::findOrFail($id);
@@ -41,8 +42,6 @@ class QueueService
             $customer->position = $newPosition;
             $customer->save();
         });
-
-        return ['message' => 'Customer moved successfully.'];
     }
 
     //   public function broadcastQueueUpdates($queueId)

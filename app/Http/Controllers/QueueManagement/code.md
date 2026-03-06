@@ -181,94 +181,6 @@
     
 
 
-
-
-    
-    public function activateQueue(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $queue->is_active = true;
-            $queue->save();
-            //send message to each customer in the queue 
-            //send message to the customer num 1 that his turn is now and for 2 that his turn is close
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Queue activated successfully'
-            ], Response::HTTP_OK);
-        } catch (\Exception $e) {
-            Log::error('Failed to activate queue: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to activate queue'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function completeServing(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id',
-                'user_id' => 'required|exists:users,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-
-            // Get the queue_user pivot record directly from the pivot table
-            $pivot = \DB::table('queue_user')
-                ->where('queue_id', $queue->id)
-                ->where('user_id', $request->user_id)
-                ->first();
-
-            $servedAt = $pivot ? $pivot->served_at : null;
-            Log::info('servedAt: ' . $servedAt);
-
-            // Mark the current time as completed_at
-            $completedAt = now();
-
-            // Calculate waiting time in seconds between served_at and completed_at
-            $waitingTimeInSeconds = Carbon::parse($servedAt)->diffInSeconds($completedAt);
-            Log::info('waitingTimeInSeconds: ' . $waitingTimeInSeconds);
-
-            // Create the served customer record
-            $servedCustomer = ServedCustomer::create([
-                'queue_id' => $queue->id,
-                'user_id' => $request->user_id,
-                'waiting_time' => $waitingTimeInSeconds
-            ]);
-
-            // Detach the user from queue
-            $queue->users()->detach($request->user_id);
-            $this->queueService->normalizePositions($queue->id);
-
-            // Broadcast updated queue information to all remaining customers
-            $this->queueService->broadcastQueueUpdates($queue->id);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Customer served successfully',
-                'data' => [
-                    'waiting_time' => $waitingTimeInSeconds,
-                    'served_at' => $servedAt,
-                    'completed_at' => $completedAt
-                ]
-            ], Response::HTTP_OK);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Exception $e) {
-            Log::error('Failed to complete serving: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to complete serving'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
     /**
      * Broadcast queue updates to all customers in a specific queue
      * 
@@ -427,32 +339,9 @@
             Log::error('Failed to broadcast queue updates: ' . $e->getMessage());
         }
     }
-    public function callNextCustomer(Request $request){
-        try {
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $nextCustomer = $queue->users()->where('status', 'waiting')->orderBy('position')->first();
-            $queue->users()->updateExistingPivot($nextCustomer->id, [
-                'status' => 'serving',
-                'served_at' => now()
-            ]);
-            $this->broadcastQueueUpdates($queue->id);
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Next customer called successfully',
-                'data' => $nextCustomer
-            ], Response::HTTP_OK);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to call next customer: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to call next customer'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
+
+
 
     public function lateCustomer(Request $request){
         try {
