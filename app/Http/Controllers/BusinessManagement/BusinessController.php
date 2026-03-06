@@ -11,7 +11,7 @@ class BusinessController extends Controller
     public function index()
     {
         try {
-            $user = auth()->user();
+            $user = auth('api')->user();
             $businesses = Business::where('id', $user->business_id)->get();
             return response()->json([
                 'status' => 'success',

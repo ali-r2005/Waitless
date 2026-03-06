@@ -96,7 +96,9 @@ class RegisteredUserController extends Controller
                     $user->save();
                     
                     // Create JWT authentication token
-                    $token = auth('api')->login($user);
+                    /** @var \Tymon\JWTAuth\JWTGuard $jwtGuard */
+                    $jwtGuard = auth('api');
+                    $token = $jwtGuard->login($user);
                     
                     $response = response()->json([
                         'status' => 'success',
@@ -108,7 +110,9 @@ class RegisteredUserController extends Controller
                     ], Response::HTTP_CREATED);
                 } else {
                     // Regular user registration
-                    $token = auth('api')->login($user);
+                    /** @var \Tymon\JWTAuth\JWTGuard $jwtGuard */
+                    $jwtGuard = auth('api');
+                    $token = $jwtGuard->login($user);
                     
                     $response = response()->json([
                         'status' => 'success',

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('position')->nullable();
             $table->enum('status', ['waiting','late','serving', 'served', 'cancelled'])->default('waiting');
             $table->string('ticket_number')->nullable();
+            $table->timestamp('start_serving_at')->nullable();
             $table->timestamp('served_at')->nullable();
             $table->timestamp('late_at')->nullable();
             $table->timestamps();

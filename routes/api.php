@@ -18,18 +18,18 @@ Route::middleware(['auth:api'])->get('/user', function (Request $request) {
 // Routes accessible to branch managers
 Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
     // Limited staff management for branch managers
-    Route::post('/users/{user}/add-to-staff', [StaffController::class, 'store']);
-    Route::delete('/users/{user}/remove-from-staff', [StaffController::class, 'destroy']);
+    Route::post('/staff/{user}', [StaffController::class, 'store']);
+    Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
     Route::get('/staff', [StaffController::class, 'index']);
     Route::get('/staff/{user}', [StaffController::class, 'show']);
 });
 
 // Queue routes - accessible based on role
 Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () {
-    Route::get('/users/search', [StaffController::class, 'search']);
     Route::get('business', [BusinessController::class, 'index']);
+    Route::get('/users/search', [StaffController::class, 'search']);
+
     Route::apiResource('queues', QueueController::class);
-    
     // Queue Management routes
     Route::prefix('queue-management')->group(function () {
         // Customer queue operations
@@ -63,6 +63,9 @@ Route::middleware(['auth:api'])->prefix('queue-management')->group(function () {
     Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
 });
 
+// GET /queues/1/users
+// POST /queues/1/users
+// DELETE /queues/1/users/7
 
 
 require __DIR__.'/auth.php';
