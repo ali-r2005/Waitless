@@ -31,30 +31,11 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
 
     Route::apiResource('queues', QueueController::class);
     // Queue Management routes
-    Route::prefix('queue-management')->group(function () {
+    Route::prefix('queues')->group(function () {
         // Customer queue operations
-        Route::post('/add-customer', [QueueManager::class, 'addCustomerToQueue']);
-        Route::get('/customers', [QueueManager::class, 'getQueueCustomers']);
-        
-        // Queue operations
-        Route::post('/activate', [QueueManager::class, 'activateQueue']);
-        Route::post('/call-next', [QueueManager::class, 'callNextCustomer']);
-        Route::post('/complete-serving', [QueueManager::class, 'completeServing']);
-        
-        // Queue pause/resume operations
-        Route::post('/pause', [QueueManager::class, 'pauseQueue']);
-        Route::post('/resume', [QueueManager::class, 'resumeQueue']);
-        
-        // Customer position management
-        Route::patch('/customers/{id}/move', [QueueManager::class, 'move']);
-        
-        // Late customer management
-        Route::post('/customers/late', [QueueManager::class, 'lateCustomer']);
-        Route::get('/customers/late', [QueueManager::class, 'getLateCustomers']);
-        Route::post('/customers/reinsert', [QueueManager::class, 'reinsertCustomer']);
-        
-        // Served customers management
-        Route::get('/customers/served-today', [QueueManager::class, 'getCustomersServedToday']);
+        Route::post('/{queue}/users/{user}', [QueueManager::class, 'addCustomerToQueue']);
+        Route::delete('/{queue}/users/{user}', [QueueManager::class, 'removeCustomerFromQueue']);
+       
     });
 });
 
