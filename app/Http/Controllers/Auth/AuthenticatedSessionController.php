@@ -22,11 +22,15 @@ class AuthenticatedSessionController extends Controller
 
             $credentials = $request->only('email', 'password');
 
-            if (!$token = auth('api')->attempt($credentials)) {
-                return response()->json(['message' => 'Invalid login credentials'], 401);
+            /** @var \Tymon\JWTAuth\JWTGuard $jwtGuard */
+            $jwtGuard = auth('api');
+            if (!$token = $jwtGuard->attempt($credentials)) {
+                throw ValidationException::withMessages([
+                    'email' => ['These credentials do not match our records.'],
+                ]);
             }
 
-            $user = auth('api')->user();
+            $user = $jwtGuard->user();
 
             return response()->json([
                 'access_token' => $token,

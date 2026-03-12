@@ -348,51 +348,6 @@
 
 
 
-    public function reinsertCustomer(Request $request){
-        try{
-            //add wich position to reisert the customer on it and the queue id
-            $request->validate([
-                'queue_id' => 'required|exists:queues,id',
-                'user_id' => 'required|exists:users,id',
-                'position' => 'required|integer'
-            ]);
-            $queue = Queue::find($request->queue_id);
-            $queue->users()->updateExistingPivot($request->user_id, [
-                'status' => 'waiting'
-            ]);
-
-            // Get the queue_user record
-            $queueUser = QueueUser::where('queue_id', $request->queue_id)
-                ->where('user_id', $request->user_id)
-                ->first();
-
-            if ($queueUser) {
-                // Create a new request with the new_position parameter
-                $moveRequest = new Request();
-                $moveRequest->merge(['new_position' => $request->position]);
-                $this->move($moveRequest, $queueUser->id);
-            }
-
-            $this->normalizePositions($queue->id);
-            $this->broadcastQueueUpdates($queue->id);
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Customer reinserted in the queue successfully'
-            ], Response::HTTP_OK);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Exception $e) {
-            Log::error('Failed to reinsert customer in the queue: ' . $e->getMessage());
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to reinsert customer in the queue'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
 
     /**
      * Pause a queue
