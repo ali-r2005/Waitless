@@ -18,6 +18,7 @@ class QueueController extends Controller
     public function index(Request $request)
     {
         try {
+            $perPage = $request->input('per_page', 5); // Default 5 items per page
             $user = Auth::user();
             $query = Queue::query();
 
@@ -55,10 +56,19 @@ class QueueController extends Controller
                 $query->where('is_active', $request->is_active);
             }
 
-            $queues = $query->get();
+            $queues = $query->paginate($perPage);
+
             return response()->json([
                 'status' => 'success',
-                'data' => $queues,
+                'data' => $queues->items(),
+                'pagination' => [
+                    'current_page' => $queues->currentPage(),
+                    'last_page' => $queues->lastPage(),
+                    'per_page' => $queues->perPage(),
+                    'total' => $queues->total(),
+                    'from' => $queues->firstItem(),
+                    'to' => $queues->lastItem(),
+                ]
             ], Response::HTTP_OK);
 
         } catch (\Exception $e) {
