@@ -52,9 +52,4 @@ Route::middleware(['auth:api'])->prefix('queue-management')->group(function () {
     Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
 });
 
-// GET /queues/1/users
-// POST /queues/1/users
-// DELETE /queues/1/users/7
-
-
 require __DIR__.'/auth.php';

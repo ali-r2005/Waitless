@@ -7,8 +7,11 @@ use App\Models\User;
 use App\Models\QueueUser;
 use App\Models\ServedCustomer;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class Queue extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'business_id',
         'user_id',
