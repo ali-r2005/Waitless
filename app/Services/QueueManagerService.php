@@ -26,9 +26,9 @@ class QueueManagerService
          $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
     }
     public function removecustumer(QueueUser $queueUser){
-        if($queueUser->status !== 'waiting'){
-            throw new \Exception('User is not waiting in the queue');
-        }
+        // if($queueUser->status !== 'waiting'){
+        //     throw new \Exception('User is not waiting in the queue');
+        // }
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
         $this->queueService->normalizePositions($queueId);
@@ -57,6 +57,7 @@ class QueueManagerService
             'status' => 'served',
             'served_at' => now()
         ]);
+        $this->queueService->normalizePositions($queue->id);
         // $this->broadcastQueueUpdates($queue->id);
     }
 

@@ -33,13 +33,13 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
     // Queue Management routes
     Route::prefix('queues')->group(function () {
         // Customer queue operations
+        Route::get('/{queue}/users', [QueueManager::class, 'getQueueCustomers']);
         Route::post('/{queue}/users/{user}', [QueueManager::class, 'addCustomerToQueue']);
         Route::delete('/queue-users/{queueUser}', [QueueManager::class, 'removeCustomerFromQueue']);
         Route::put('/queue-users/{queueUser}/mark-late', [QueueManager::class, 'markCustomerAsLate']);
         Route::put('/queue-users/{queueUser}/reinsert', [QueueManager::class, 'reinsertCustomer']);
         Route::put('/queue-users/{queueUser}/move', [QueueManager::class, 'moveCustomer']);
         Route::put('/queue-users/{queueUser}/cancel', [QueueManager::class, 'cancelCustomer']);
-        Route::get('/{queue}/users', [QueueManager::class, 'getQueueCustomers']);
         Route::put('/{queue}/activate', [QueueManager::class,'activateQueue']);
         Route::put('/{queue}/call-next', [QueueManager::class,'callNextCustomer']);
         Route::put('/{queue}/complete-serving', [QueueManager::class,'completeServing']);
@@ -48,6 +48,7 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
 });
 
 // Queue Management routes accessible to any authenticated user (e.g., customer removing themselves)
+// here it should be added that the user with role customer can remove themselves from the queue with the convetion that the user id is the id of the user that is logged in
 Route::middleware(['auth:api'])->prefix('queue-management')->group(function () {
     Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
 });
