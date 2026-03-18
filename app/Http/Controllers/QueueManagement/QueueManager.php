@@ -59,9 +59,11 @@ class QueueManager extends Controller
     {
         try {
             $query = $queue->users();
+            $positions = null;
 
             if ($request->query('status') === 'late') {
                 $query->where('status', 'late');
+                $positions = $queue->users()->where('status', 'waiting')->orWhere('status', 'serving')->count();
             } else {
                 $query->where(function ($q) {
                     $q->where('status', 'waiting')->orWhere('status', 'serving');
@@ -72,7 +74,8 @@ class QueueManager extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'data' => $customers
+                'data' => $customers,
+                'positions' => $positions
             ], Response::HTTP_OK);
         } catch (\Exception $e) {
             Log::error('Failed to get queue customers: ' . $e->getMessage());
