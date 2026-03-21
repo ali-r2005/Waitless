@@ -6,6 +6,8 @@ use App\Models\Queue;
 use App\Models\QueueUser;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
+use App\Events\SendUpdate;
+use Illuminate\Support\Facades\Log;
 
 class QueueManagerService
 {
@@ -24,6 +26,17 @@ class QueueManagerService
             'status' => 'waiting'
          ]);
          $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
+        $update = [
+            'type' => 'queue_update',
+            'receiver_id' => $user->id,
+            'queue_id' => $queue->id,
+            'queue_name' => $queue->name,
+            'ticket_number' => $ticket_number,
+            'position' => $maxPosition + 1,
+            'status' => 'waiting'
+        ];
+        Log::info('Queue update', $update);
+        event(new SendUpdate($update));
     }
     public function removecustumer(QueueUser $queueUser){
         // if($queueUser->status !== 'waiting'){
