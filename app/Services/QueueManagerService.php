@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use App\Events\SendUpdate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class QueueManagerService
 {
@@ -39,9 +40,10 @@ class QueueManagerService
         event(new SendUpdate($update));
     }
     public function removecustumer(QueueUser $queueUser){
-        // if($queueUser->status !== 'waiting'){
-        //     throw new \Exception('User is not waiting in the queue');
-        // }
+        $user = Auth::user();
+        if($queueUser->user_id !== $user->id && $user->role === 'customer'){
+            throw new \Exception('You are not authorized to remove this customer from the queue');
+        }
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
         $this->queueService->normalizePositions($queueId);
@@ -109,13 +111,18 @@ class QueueManagerService
     }
 
     public function cancelCustomer(QueueUser $queueUser){
-        if (in_array($queueUser->status, ['served', 'canceled'])) {
-            throw new \Exception('Cannot cancel a customer who is already served or canceled');
+        if (in_array($queueUser->status, ['served', 'cancelled'])) {
+            throw new \Exception('Cannot cancel a customer who is already served or cancelled');
+        }
+        
+        $user = Auth::user();
+        if($queueUser->user_id !== $user->id && $user->role === 'customer'){
+            throw new \Exception('You are not authorized to remove this customer from the queue');
         }
         
         $queueId = $queueUser->queue_id;
         $queueUser->update([
-            'status' => 'canceled',
+            'status' => 'cancelled',
             'position' => null
         ]);
 

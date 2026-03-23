@@ -20,5 +20,15 @@ class QueueUser extends Pivot
         'late_at',
         'position'
     ];
+
+    public function queue()
+    {
+        return $this->belongsTo(Queue::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
     
 }

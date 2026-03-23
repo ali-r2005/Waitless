@@ -50,9 +50,11 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
 
 // here it should be added that the user with role customer can remove themselves from the queue with the convetion that the user id is the id of the user that is logged in
 Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {
-    Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
+    Route::delete('/queue-users/{queueUser}', [QueueManager::class, 'removeCustomerFromQueue']);
+    Route::get('/queue-users/{queueUser}', [CustomerController::class, 'getQueueCustomer']);
     //route for the customer to get the queues that his in
     Route::get('/queues', [CustomerController::class, 'getQueues']);
+    Route::put('/queue-users/{queueUser}/cancel', [QueueManager::class, 'cancelCustomer']);
 });
 
 require __DIR__.'/auth.php';

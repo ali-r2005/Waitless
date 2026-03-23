@@ -213,7 +213,7 @@ class QueueManager extends Controller
             $this->queueManagerService->cancelCustomer($queueUser);
             return response()->json([
                 'status' => 'success',
-                'message' => 'Customer canceled successfully'
+                'message' => 'Customer cancelled successfully'
             ], Response::HTTP_OK);
         } catch (\Exception $e) {
             Log::error('Failed to cancel customer: ' . $e->getMessage());
