@@ -7,6 +7,7 @@ use App\Http\Controllers\QueueManagement\QueueController;
 use App\Http\Controllers\QueueManagement\QueueManager; 
 use App\Http\Controllers\BusinessManagement\BusinessController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\QueueManagement\CustomerController;
 
 // Register the broadcasting routes with JWT authentication
 Broadcast::routes(['middleware' => ['auth:api']]);
@@ -47,10 +48,11 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
     });
 });
 
-// Queue Management routes accessible to any authenticated user (e.g., customer removing themselves)
 // here it should be added that the user with role customer can remove themselves from the queue with the convetion that the user id is the id of the user that is logged in
-Route::middleware(['auth:api'])->prefix('queue-management')->group(function () {
+Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {
     Route::delete('/remove-customer', [QueueManager::class, 'removeCustomerFromQueue']);
+    //route for the customer to get the queues that his in
+    Route::get('/queues', [CustomerController::class, 'getQueues']);
 });
 
 require __DIR__.'/auth.php';

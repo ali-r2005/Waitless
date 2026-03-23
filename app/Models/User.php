@@ -74,7 +74,7 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsToMany(Queue::class)
             ->using(QueueUser::class)
-            ->withPivot('status', 'ticket_number', 'served_at', 'late_at', 'position');
+            ->withPivot('id', 'status', 'ticket_number', 'served_at', 'late_at', 'position');
     }
 
     public function servedCustomers()
