@@ -26,17 +26,7 @@ class QueueManagerService
             'position' => $maxPosition + 1,
             'status' => 'waiting'
          ]);
-         $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
-        $update = [
-            'type' => 'queue_update',
-            'receiver_id' => $user->id,
-            'queue_id' => $queue->id,
-            'queue_name' => $queue->name,
-            'ticket_number' => $ticket_number,
-            'position' => $maxPosition + 1,
-            'status' => 'waiting'
-        ];
-        Log::info('Queue update', $update);
+        $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
         $this->queueService->broadcastQueueUpdates($queue->id);
     }
     public function removecustumer(QueueUser $queueUser){
@@ -48,6 +38,7 @@ class QueueManagerService
         $queueUser->delete();
         $this->queueService->normalizePositions($queueId);
         $this->queueService->broadcastQueueUpdates($queueId);
+        $queueUser->user->notify(new NewMessageNotification('You have been removed from the queue ' . $queueUser->queue->name));
         //here an notification for all users about there new position after the change
     }
     

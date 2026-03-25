@@ -6,10 +6,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class NewMessageNotification extends Notification implements ShouldBroadcast
+class NewMessageNotification extends Notification implements ShouldQueue
 {
     use Queueable;
     
@@ -29,7 +29,7 @@ class NewMessageNotification extends Notification implements ShouldBroadcast
      */
     public function via(object $notifiable): array
     {
-        return ['broadcast'];
+        return ['broadcast', 'database'];
     }
 
     /**
@@ -50,7 +50,7 @@ class NewMessageNotification extends Notification implements ShouldBroadcast
     public function toArray(object $notifiable): array
     {
         return [
-            //
+            'message'=> $this->message
         ];
     }
 }
