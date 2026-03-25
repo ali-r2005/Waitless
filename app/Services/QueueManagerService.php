@@ -47,6 +47,7 @@ class QueueManagerService
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
         $this->queueService->normalizePositions($queueId);
+        $this->queueService->broadcastQueueUpdates($queueId);
         //here an notification for all users about there new position after the change
     }
     
@@ -54,6 +55,8 @@ class QueueManagerService
         $queue->is_active = true;
         $queue->save();
         //send message to each customer in the queue 
+        $this->queueService->normalizePositions($queue->id);
+        $this->queueService->broadcastQueueUpdates($queue->id);
         //send message to the customer num 1 that his turn is now and for 2 that his turn is close
     }
 
@@ -107,6 +110,7 @@ class QueueManagerService
 
         // Normalize positions since the user is no longer 'waiting'
         $this->queueService->normalizePositions($queueId);
+        $this->queueService->broadcastQueueUpdates($queueId);
     }
 
     public function reinsertCustomer(QueueUser $queueUser, $position){
@@ -129,6 +133,7 @@ class QueueManagerService
         // Step 2: Use move() to shift them to the desired position,
         // which handles pushing other customers down correctly.
         $this->queueService->move($position, $queueUser->id);
+        $this->queueService->broadcastQueueUpdates($queueId);
     }
 
     public function cancelCustomer(QueueUser $queueUser){
@@ -148,5 +153,6 @@ class QueueManagerService
         ]);
 
         $this->queueService->normalizePositions($queueId);
+        $this->queueService->broadcastQueueUpdates($queueId);
     }
 }

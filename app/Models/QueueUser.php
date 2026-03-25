@@ -20,6 +20,7 @@ class QueueUser extends Pivot
         'late_at',
         'position',
         'estimated_waiting_time',
+        'start_serving_at',
     ];
 
     public function queue()

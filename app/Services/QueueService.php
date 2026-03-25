@@ -195,25 +195,18 @@ class QueueService
 
                 // Prepare the update payload for this specific user
                 $update = [
-                    'type'        => 'queue_update',
                     'receiver_id' => $user->id,
-                    'queue_id'    => $queueId,
-                    'data'        => [
-                        'queue_state'            => $queueState,
-                        'is_paused'              => $queue->is_paused,
-                        'estimated_waiting_time' => $estimatedWaitingTime,
-                        'average_service_time'   => $averageServiceTimeInSeconds,
-                        'current_customer'       => $currentCustomer ? [
-                            'id'            => $currentQueueUser->user_id,
-                            'name'          => $currentCustomer->name,
-                            'ticket_number' => $currentQueueUser->ticket_number,
-                        ] : null,
-                        'position'         => $user->position,
-                        'customers_ahead'  => $customersAhead,
-                        'total_customers'  => $queueLength,
-                        'ticket_number'    => $user->ticket_number,
-                        'status'           => $user->status,
-                    ],
+                    'queue_id' => $queueId,
+                    'queue_name' => $queue->name,
+                    'queue_state' => $queueState,
+                    'is_paused' => $queue->is_paused,
+                    'estimated_waiting_time' => $estimatedWaitingTime,
+                    'current_customer' => $currentCustomer ? [
+                        'ticket_number' => $currentQueueUser->ticket_number,
+                    ] : null,
+                    'position' => $user->position,
+                    'ticket_number' => $user->ticket_number,
+                    'status' => $user->status,
                 ];
 
                 // Broadcast the update to this specific user's private channel
