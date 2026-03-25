@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\QueueUser;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Models\Queue;
+use App\Events\SendUpdate;
 
 class QueueService
 {
@@ -65,156 +68,162 @@ class QueueService
         });
     }
 
-    //   public function broadcastQueueUpdates($queueId)
-    // {
-    //     try {
-    //         $queue = Queue::findOrFail($queueId);
+      public function broadcastQueueUpdates($queueId)
+    {
+        try {
+            $queue = Queue::findOrFail($queueId);
 
-    //         // Get all users in this queue ordered by their position time
-    //         $queueUsers = $queue->users()
-    //             ->orderBy('position')
-    //             ->get(['users.id', 'users.name', 'users.phone', 'users.email', 'queue_user.ticket_number', 'queue_user.status', 'queue_user.position']);
+            if (!$queue->is_active) {
+                return;
+            }
 
-    //         if ($queueUsers->isEmpty()) {
-    //             return;
-    //         }
+            $queueUsers = $queue->users()
+                ->where('queue_user.status', 'waiting')
+                ->orderBy('queue_user.position')
+                ->get(['users.id', 'users.name', 'users.phone', 'users.email', 'queue_user.id as queue_user_id', 'queue_user.ticket_number', 'queue_user.status', 'queue_user.position']);
 
-    //         // Queue length
-    //         $queueLength = $queueUsers->count();
+            if ($queueUsers->isEmpty()) {
+                return;
+            }
 
-    //         // Calculate N - the number of recent customers to consider
-    //         $alpha = 0.5; // α is a fraction equal to 0.5
-    //         $n = max(1, round($alpha * $queueLength)); // At least 1 customer
+            // Queue length (active users only)
+            $queueLength = $queueUsers->count();
 
-    //         // Get the average waiting time from the most recent N served customers
-    //         $recentServedCustomers = ServedCustomer::where('queue_id', $queueId)
-    //             ->latest()
-    //             ->take($n)
-    //             ->get();
+            // Calculate N - the number of recent customers to consider
+            $alpha = 0.5; // α is a fraction equal to 0.5
+            $n = max(1, round($alpha * $queueLength)); // At least 1 customer
 
-    //         // Default value if no served customers yet
-    //         $averageServiceTimeInSeconds = 300; // Default 5 minutes per customer
+            // Get the average waiting time from the most recent N served customers
+            $recentServedCustomers = $queue->users()
+                ->where('queue_user.status', 'served')
+                ->orderByPivot('served_at', 'desc')
+                ->take($n)
+                ->get();
 
-    //         if ($recentServedCustomers->isNotEmpty()) {
-    //             // The 'waiting_time' in ServedCustomer is actually the service time (time between served_at and completion)
-    //             $totalServiceTime = $recentServedCustomers->sum('waiting_time');
-    //             $averageServiceTimeInSeconds = $totalServiceTime / $recentServedCustomers->count();
+            // Default value if no served customers yet
+            $averageServiceTimeInSeconds = 300; // Default 5 minutes per customer
 
-    //             // Ensure we have a reasonable minimum value (at least 30 seconds)
-    //             $averageServiceTimeInSeconds = max(30, $averageServiceTimeInSeconds);
-    //         }
+            if ($recentServedCustomers->isNotEmpty()) {
+                // time between start_serving_at and served_at
+                $totalServiceTime = $recentServedCustomers->sum(function ($customer) {
+                    if ($customer->start_serving_at && $customer->served_at) {
+                        return $customer->served_at->diffInSeconds($customer->start_serving_at);
+                    }
+                    return 0;
+                });
+                $averageServiceTimeInSeconds = $totalServiceTime / $recentServedCustomers->count();
 
-    //         // Find the current customer being served (first in queue or with status 'serving')
-    //         $currentCustomer = $queueUsers->firstWhere('status', 'serving') ?? $queueUsers->first();
+                // Ensure we have a reasonable minimum value (at least 30 seconds)
+                $averageServiceTimeInSeconds = max(30, $averageServiceTimeInSeconds);
+            }
 
-    //         // Determine the queue state for UI display
-    //         $queueState = 'active';
-    //         if ($queue->is_paused) {
-    //             $queueState = 'paused';
-    //         } elseif (!$queue->is_active) {
-    //             $queueState = 'inactive';
-    //         } elseif (!$currentCustomer || $currentCustomer->status !== 'serving') {
-    //             $queueState = 'ready_to_call'; // Queue is active but no one is being served yet
-    //         }
+            // Find the customer currently being served (separate query — $queueUsers only has 'waiting')
+            $currentQueueUser = QueueUser::where('queue_id', $queueId)
+                ->where('status', 'serving')
+                ->first();
 
-    //         // Prepare data for staff and branch managers
-    //         $staffQueueData = [
-    //             'queue_id' => $queueId,
-    //             'queue_name' => $queue->name,
-    //             'is_active' => $queue->is_active,
-    //             'is_paused' => $queue->is_paused,
-    //             'queue_state' => $queueState,
-    //             'current_serving' => $currentCustomer ? [
-    //                 'id' => $currentCustomer->id,
-    //                 'name' => $currentCustomer->name,
-    //                 'phone' => $currentCustomer->phone,
-    //                 'email' => $currentCustomer->email,
-    //                 'ticket_number' => $currentCustomer->ticket_number,
-    //                 'status' => $currentCustomer->status
-    //             ] : null,
-    //             'total_customers' => $queueUsers->count(),
-    //             'average_service_time' => $averageServiceTimeInSeconds,
-    //             'waiting_customers' => $queueUsers->where('status', 'waiting')->count(),
-    //             'next_available_customer' => $queueUsers->where('status', 'waiting')->first() ? [
-    //                 'id' => $queueUsers->where('status', 'waiting')->first()->id,
-    //                 'name' => $queueUsers->where('status', 'waiting')->first()->name,
-    //                 'ticket_number' => $queueUsers->where('status', 'waiting')->first()->ticket_number
-    //             ] : null,
-    //             'timestamp' => now()->toIso8601String()
-    //         ];
+            // Load the related User so we can access name/email/phone for the staff payload
+            $currentCustomer = $currentQueueUser ? $currentQueueUser->user : null;
 
-    //         // Broadcast update to staff and branch managers
-    //         event(new \App\Events\StaffQueueUpdate($staffQueueData));
+            // Persist EWT = 0 for the serving customer so the column stays consistent
+            if ($currentQueueUser) {
+                $currentQueueUser->update(['estimated_waiting_time' => 0]);
+            }
 
-    //         // For each customer in the queue, broadcast their position and estimated wait time
-    //         foreach ($queueUsers as $index => $user) {
-    //             // Calculate position (0 for current customer)
-    //             $position = 0;
-    //             if ($user->id != $currentCustomer->id) {
-    //                 $position = $queueUsers->search(function($item) use ($user) {
-    //                     return $item->id === $user->id;
-    //                 });
-    //             }
+            // Determine the queue state for UI display
+            $queueState = 'active';
+            if ($queue->is_paused) {
+                $queueState = 'paused';
+            } elseif (!$queue->is_active) {
+                $queueState = 'inactive';
+            } elseif (!$currentQueueUser) {
+                $queueState = 'ready_to_call'; // Queue is active but no one is being served yet
+            }
 
-    //             // Calculate estimated waiting time based on position and average service time
-    //             $estimatedWaitingTime = 0;
+            // Prepare data for staff and branch managers
+            $staffQueueData = [
+                'queue_id'               => $queueId,
+                'queue_name'             => $queue->name,
+                'is_active'              => $queue->is_active,
+                'is_paused'              => $queue->is_paused,
+                'queue_state'            => $queueState,
+                'current_serving'        => $currentCustomer ? [
+                    'id'            => $currentQueueUser->user_id,
+                    'name'          => $currentCustomer->name,
+                    'phone'         => $currentCustomer->phone,
+                    'email'         => $currentCustomer->email,
+                    'ticket_number' => $currentQueueUser->ticket_number,
+                    'status'        => $currentQueueUser->status,
+                ] : null,
+                'total_customers'        => $queueLength,
+                'average_service_time'   => $averageServiceTimeInSeconds,
+                'waiting_customers'      => $queueLength, // $queueUsers is already filtered to 'waiting'
+                'next_available_customer'=> $queueUsers->first() ? [
+                    'id'            => $queueUsers->first()->id,
+                    'name'          => $queueUsers->first()->name,
+                    'ticket_number' => $queueUsers->first()->ticket_number,
+                ] : null,
+                'timestamp'              => now()->toIso8601String(),
+            ];
 
-    //             // If queue is paused, waiting time is indefinite (represented by -1)
-    //             if ($queue->is_paused) {
-    //                 $estimatedWaitingTime = -1;
-    //             } else if ($position > 0) {
-    //                 // If there's a customer being served, adjust the calculation
-    //                 if ($currentCustomer->status === 'serving') {
-    //                     // For the first waiting customer, estimate half the average service time
-    //                     // For others, full time for each position ahead of them
-    //                     if ($position === 1) {
-    //                         $estimatedWaitingTime = $averageServiceTimeInSeconds / 2;
-    //                     } else {
-    //                         $estimatedWaitingTime = (($position - 1) * $averageServiceTimeInSeconds) + ($averageServiceTimeInSeconds / 2);
-    //                     }
-    //                 } else {
-    //                     // No customer is currently being served, so use the original calculation
-    //                     if($position === 0){
-    //                         $estimatedWaitingTime = $averageServiceTimeInSeconds / 2;
-    //                     } else {
-    //                         $estimatedWaitingTime = $position * $averageServiceTimeInSeconds;
-    //                     }
-    //                 }
-    //             }
+            // Broadcast update to staff and branch managers
+            event(new \App\Events\StaffQueueUpdate($staffQueueData));
 
-    //             // Get remaining customers count
-    //             $customersAhead = $position;
-    //             $totalCustomers = $queueUsers->count();
+            // For each waiting customer in the queue, calculate & persist EWT, then broadcast
+            foreach ($queueUsers as $user) {
+                // customersAhead = position - 1 (position is 1-based)
+                $customersAhead = $user->position - 1;
 
-    //             // Prepare the update data
-    //             $update = [
-    //                 'type' => 'queue_update',
-    //                 'receiver_id' => $user->id,
-    //                 'data' => [
-    //                     'queue_id' => $queueId,
-    //                     'queue_name' => $queue->name,
-    //                     'queue_state' => $queueState,
-    //                     'is_paused' => $queue->is_paused,
-    //                     'estimated_waiting_time' => $estimatedWaitingTime,
-    //                     'average_service_time' => $averageServiceTimeInSeconds,
-    //                     'current_customer' => [
-    //                         'id' => $currentCustomer->id,
-    //                         'name' => $currentCustomer->name,
-    //                         'ticket_number' => $currentCustomer->ticket_number
-    //                     ],
-    //                     'position' => $position,
-    //                     'customers_ahead' => $customersAhead,
-    //                     'total_customers' => $totalCustomers
-    //                 ]
-    //             ];
+                $estimatedWaitingTime = 0;
 
-    //             // Broadcast the update to this specific user
-    //             event(new SendUpdate($update));
-    //             Log::info('The average service time is ' . $averageServiceTimeInSeconds . ' seconds');
-    //         }
+                if ($queue->is_paused) {
+                    $estimatedWaitingTime = -1;
+                } elseif ($currentQueueUser) {
+                    // Someone is actively being served.
+                    // First waiting customer (customersAhead == 0): ~half the avg service time remains.
+                    // Subsequent customers: full time per extra slot.
+                    $estimatedWaitingTime = ($customersAhead * $averageServiceTimeInSeconds)
+                                            + ($averageServiceTimeInSeconds / 2);
+                } else {
+                    // Nobody is being served yet; full average service time per slot ahead.
+                    $estimatedWaitingTime = ($customersAhead + 1) * $averageServiceTimeInSeconds;
+                }
 
-    //     } catch (\Exception $e) {
-    //         Log::error('Failed to broadcast queue updates: ' . $e->getMessage());
-    //     }
-    // }
+                // Persist the calculated estimated waiting time to the queue_user row
+                QueueUser::where('id', $user->queue_user_id)
+                    ->update(['estimated_waiting_time' => $estimatedWaitingTime]);
+
+                // Prepare the update payload for this specific user
+                $update = [
+                    'type'        => 'queue_update',
+                    'receiver_id' => $user->id,
+                    'queue_id'    => $queueId,
+                    'data'        => [
+                        'queue_state'            => $queueState,
+                        'is_paused'              => $queue->is_paused,
+                        'estimated_waiting_time' => $estimatedWaitingTime,
+                        'average_service_time'   => $averageServiceTimeInSeconds,
+                        'current_customer'       => $currentCustomer ? [
+                            'id'            => $currentQueueUser->user_id,
+                            'name'          => $currentCustomer->name,
+                            'ticket_number' => $currentQueueUser->ticket_number,
+                        ] : null,
+                        'position'         => $user->position,
+                        'customers_ahead'  => $customersAhead,
+                        'total_customers'  => $queueLength,
+                        'ticket_number'    => $user->ticket_number,
+                        'status'           => $user->status,
+                    ],
+                ];
+
+                // Broadcast the update to this specific user's private channel
+                event(new SendUpdate($update));
+            }
+
+            Log::info("Queue {$queueId} broadcast complete. Avg service time: {$averageServiceTimeInSeconds}s, Active users: {$queueLength}");
+
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast queue updates: ' . $e->getMessage());
+        }
+    }
 }

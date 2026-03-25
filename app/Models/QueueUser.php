@@ -18,7 +18,8 @@ class QueueUser extends Pivot
         'ticket_number',
         'served_at',
         'late_at',
-        'position'
+        'position',
+        'estimated_waiting_time',
     ];
 
     public function queue()

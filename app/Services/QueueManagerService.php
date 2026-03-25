@@ -37,7 +37,7 @@ class QueueManagerService
             'status' => 'waiting'
         ];
         Log::info('Queue update', $update);
-        event(new SendUpdate($update));
+        $this->queueService->broadcastQueueUpdates($queue->id);
     }
     public function removecustumer(QueueUser $queueUser){
         $user = Auth::user();
@@ -58,22 +58,43 @@ class QueueManagerService
     }
 
     public function callNextCustomer(Queue $queue){
-        $nextCustomer = $queue->users()->where('status', 'waiting')->orderBy('position')->first();
-        $queue->users()->updateExistingPivot($nextCustomer->id, [
+        $nextQueueUser = QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'waiting')
+            ->orderBy('position')
+            ->first();
+
+        if (!$nextQueueUser) {
+            throw new \Exception('No waiting customers in this queue');
+        }
+
+        Log::info('Next customer queue_user id: ' . $nextQueueUser->id . ', user_id: ' . $nextQueueUser->user_id);
+
+        // Update the exact queue_user row by its own primary key
+        $nextQueueUser->update([
             'status' => 'serving',
             'start_serving_at' => now()
         ]);
-        // $this->broadcastQueueUpdates($queue->id);
+
+        $this->queueService->broadcastQueueUpdates($queue->id);
     }
 
     public function completeServing(Queue $queue){
-        $servingCustomer = $queue->users()->where('status', 'serving')->first();
-        $queue->users()->updateExistingPivot($servingCustomer->id, [
+        // Same reasoning: use the queue_user.id directly to update the exact pivot row
+        $servingQueueUser = QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'serving')
+            ->first();
+
+        if (!$servingQueueUser) {
+            throw new \Exception('No customer is currently being served');
+        }
+
+        $servingQueueUser->update([
             'status' => 'served',
             'served_at' => now()
         ]);
+
         $this->queueService->normalizePositions($queue->id);
-        // $this->broadcastQueueUpdates($queue->id);
+        $this->queueService->broadcastQueueUpdates($queue->id);
     }
 
     public function markCustomerAsLate(QueueUser $queueUser){

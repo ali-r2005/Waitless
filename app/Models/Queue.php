@@ -42,7 +42,7 @@ class Queue extends Model
     {
         return $this->belongsToMany(User::class)
             ->using(QueueUser::class)
-            ->withPivot('id', 'status', 'ticket_number', 'served_at', 'start_serving_at', 'late_at', 'position');
+            ->withPivot('id', 'status', 'ticket_number', 'served_at', 'start_serving_at', 'late_at', 'position', 'estimated_waiting_time');
     }
     
 }
