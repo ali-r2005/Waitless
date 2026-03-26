@@ -14,9 +14,19 @@ class QueueManagerService
 {
     public function __construct(private QueueService $queueService) {}
     public function addcustumer(Queue $queue, User $user){
+         // Check if user is already waiting or being served in this specific queue
+         $existingQueueUser = QueueUser::where('queue_id', $queue->id)
+             ->where('user_id', $user->id)
+             ->whereIn('status', ['waiting', 'serving'])
+             ->first();
+
+         if ($existingQueueUser) {
+             throw new \Exception('You are already in this queue.');
+         }
+
          $maxPosition = QueueUser::where('queue_id', $queue->id)
-         ->where('status', 'waiting')
-         ->max('position') ?? 0;
+             ->where('status', 'waiting')
+             ->max('position') ?? 0;
 
          $ticket_number = 'TICKET-' . ($maxPosition + 1);
          $queue->users()->attach($user->id, [
@@ -36,10 +46,9 @@ class QueueManagerService
         }
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
+        $queueUser->user->notify(new NewMessageNotification('You have been removed from the queue ' . $queueUser->queue->name));
         $this->queueService->normalizePositions($queueId);
         $this->queueService->broadcastQueueUpdates($queueId);
-        $queueUser->user->notify(new NewMessageNotification('You have been removed from the queue ' . $queueUser->queue->name));
-        //here an notification for all users about there new position after the change
     }
     
     public function activateQueue(Queue $queue){

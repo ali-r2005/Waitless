@@ -68,7 +68,7 @@ class QueueService
         });
     }
 
-      public function broadcastQueueUpdates($queueId)
+    public function broadcastQueueUpdates($queueId)
     {
         try {
             $queue = Queue::findOrFail($queueId);
@@ -79,6 +79,7 @@ class QueueService
 
             $queueUsers = $queue->users()
                 ->where('queue_user.status', 'waiting')
+                ->orWhere('queue_user.status', 'serving')
                 ->orderBy('queue_user.position')
                 ->get(['users.id', 'users.name', 'users.phone', 'users.email', 'queue_user.id as queue_user_id', 'queue_user.ticket_number', 'queue_user.status', 'queue_user.position']);
 
@@ -142,28 +143,28 @@ class QueueService
 
             // Prepare data for staff and branch managers
             $staffQueueData = [
-                'queue_id'               => $queueId,
-                'queue_name'             => $queue->name,
-                'is_active'              => $queue->is_active,
-                'is_paused'              => $queue->is_paused,
-                'queue_state'            => $queueState,
-                'current_serving'        => $currentCustomer ? [
-                    'id'            => $currentQueueUser->user_id,
-                    'name'          => $currentCustomer->name,
-                    'phone'         => $currentCustomer->phone,
-                    'email'         => $currentCustomer->email,
+                'queue_id' => $queueId,
+                'queue_name' => $queue->name,
+                'is_active' => $queue->is_active,
+                'is_paused' => $queue->is_paused,
+                'queue_state' => $queueState,
+                'current_serving' => $currentCustomer ? [
+                    'id' => $currentQueueUser->user_id,
+                    'name' => $currentCustomer->name,
+                    'phone' => $currentCustomer->phone,
+                    'email' => $currentCustomer->email,
                     'ticket_number' => $currentQueueUser->ticket_number,
-                    'status'        => $currentQueueUser->status,
+                    'status' => $currentQueueUser->status,
                 ] : null,
-                'total_customers'        => $queueLength,
-                'average_service_time'   => $averageServiceTimeInSeconds,
-                'waiting_customers'      => $queueLength, // $queueUsers is already filtered to 'waiting'
-                'next_available_customer'=> $queueUsers->first() ? [
-                    'id'            => $queueUsers->first()->id,
-                    'name'          => $queueUsers->first()->name,
-                    'ticket_number' => $queueUsers->first()->ticket_number,
+                'total_customers' => $queueLength,
+                'average_service_time' => $averageServiceTimeInSeconds,
+                'waiting_customers' => $queueUsers->where('status', 'waiting')->count(), 
+                'next_available_customer' => $queueUsers->where('status', 'waiting')->first() ? [
+                    'id' => $queueUsers->where('status', 'waiting')->first()->id,
+                    'name' => $queueUsers->where('status', 'waiting')->first()->name,
+                    'ticket_number' => $queueUsers->where('status', 'waiting')->first()->ticket_number,
                 ] : null,
-                'timestamp'              => now()->toIso8601String(),
+                'timestamp' => now()->toIso8601String(),
             ];
 
             // Broadcast update to staff and branch managers
@@ -178,12 +179,16 @@ class QueueService
 
                 if ($queue->is_paused) {
                     $estimatedWaitingTime = -1;
-                } elseif ($currentQueueUser) {
+                }
+                elseif($currentQueueUser && $currentQueueUser->id == $user->queue_user_id){
+                    $estimatedWaitingTime = 0;
+                }
+                elseif ($currentQueueUser) {
                     // Someone is actively being served.
-                    // First waiting customer (customersAhead == 0): ~half the avg service time remains.
+                    // First waiting customer (customersAhead == 1): ~half the avg service time remains.
                     // Subsequent customers: full time per extra slot.
-                    $estimatedWaitingTime = ($customersAhead * $averageServiceTimeInSeconds)
-                                            + ($averageServiceTimeInSeconds / 2);
+                    $estimatedWaitingTime = (($customersAhead - 1) * $averageServiceTimeInSeconds)
+                        + ($averageServiceTimeInSeconds / 2);
                 } else {
                     // Nobody is being served yet; full average service time per slot ahead.
                     $estimatedWaitingTime = ($customersAhead + 1) * $averageServiceTimeInSeconds;

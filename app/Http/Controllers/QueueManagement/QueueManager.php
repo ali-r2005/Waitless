@@ -33,8 +33,8 @@ class QueueManager extends Controller
             Log::error('Failed to add customer to queue: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to add customer to queue'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => $e->getMessage()
+            ], Response::HTTP_BAD_REQUEST);
         }
     }
 
