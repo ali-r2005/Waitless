@@ -6,7 +6,7 @@ use App\Models\Queue;
 use App\Models\QueueUser;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
-use App\Events\SendUpdate;
+use App\Events\SendActions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
@@ -36,8 +36,9 @@ class QueueManagerService
             'position' => $maxPosition + 1,
             'status' => 'waiting'
          ]);
-        $user->notify(new NewMessageNotification('You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
+        
         $this->queueService->broadcastQueueUpdates($queue->id);
+        event(new SendActions($user->id, 'added', 'You have been added to the queue ' . $queue->name . ' with ticket number ' . $ticket_number));
     }
     public function removecustumer(QueueUser $queueUser){
         $user = Auth::user();
@@ -46,7 +47,7 @@ class QueueManagerService
         }
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
-        $queueUser->user->notify(new NewMessageNotification('You have been removed from the queue ' . $queueUser->queue->name));
+        event(new SendActions($queueUser->id, 'removed', 'You have been removed from the queue ' . $queueUser->queue->name));
         $this->queueService->normalizePositions($queueId);
         $this->queueService->broadcastQueueUpdates($queueId);
     }

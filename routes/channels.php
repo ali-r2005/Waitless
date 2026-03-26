@@ -12,6 +12,10 @@ Broadcast::channel('update.{receiver_id}.queue.{queue_id}', function ($user, $re
     return (int) $user->id === (int) $receiver_id;
 });
 
+Broadcast::channel('action.{user_id}', function ($user, $user_id) {
+    return (int) $user->id === (int) $user_id;
+});
+
 Broadcast::channel('staff.queue.{queue_id}', function ($user, $queue_id) {
     return true;
 });
