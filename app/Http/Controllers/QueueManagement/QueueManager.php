@@ -55,7 +55,7 @@ class QueueManager extends Controller
         }
     }
 
-    public function getQueueCustomers(Request $request, Queue $queue)
+    public function getQueueCustomers(Request $request, Queue $queue) : Response
     {
         try {
             $query = $queue->users();

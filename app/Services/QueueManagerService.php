@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Models\Queue;
 use App\Models\QueueUser;
 use App\Models\User;
-use App\Notifications\NewMessageNotification;
 use App\Events\SendActions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Events\StaffActionsUpdate;
 
 class QueueManagerService
 {
@@ -47,7 +47,11 @@ class QueueManagerService
         }
         $queueId = $queueUser->queue_id;
         $queueUser->delete();
-        event(new SendActions($queueUser->id, 'removed', 'You have been removed from the queue ' . $queueUser->queue->name));
+        if($user->role === 'customer'){
+            event(new StaffActionsUpdate($queueUser->queue->user_id, 'removed', 'The customer ' . $queueUser->user->name . ' has remove himself     from the queue ' . $queueUser->queue->name, $queueId));
+        }else{
+            event(new SendActions($queueUser->user_id, 'removed', 'You have been removed from the queue ' . $queueUser->queue->name));
+        }
         $this->queueService->normalizePositions($queueId);
         $this->queueService->broadcastQueueUpdates($queueId);
     }
@@ -78,6 +82,7 @@ class QueueManagerService
             'status' => 'serving',
             'start_serving_at' => now()
         ]);
+        event(new SendActions($nextQueueUser->user_id, 'call', 'Your turn is now in the queue to be served in ' . $queue->name));
 
         $this->queueService->broadcastQueueUpdates($queue->id);
     }
@@ -99,6 +104,7 @@ class QueueManagerService
 
         $this->queueService->normalizePositions($queue->id);
         $this->queueService->broadcastQueueUpdates($queue->id);
+        event(new SendActions($servingQueueUser->user_id, 'served', 'You have been served in the queue ' . $queue->name));
     }
 
     public function markCustomerAsLate(QueueUser $queueUser){

@@ -16,6 +16,6 @@ Broadcast::channel('action.{user_id}', function ($user, $user_id) {
     return (int) $user->id === (int) $user_id;
 });
 
-Broadcast::channel('staff.queue.{queue_id}', function ($user, $queue_id) {
-    return true;
+Broadcast::channel('staff.{user_id}.actions.{queue_id}', function ($user, $user_id) {
+    return (int) $user->id === (int) $user_id;
 });
