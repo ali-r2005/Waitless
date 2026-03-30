@@ -118,6 +118,9 @@ class QueueService
                 $averageServiceTimeInSeconds = max(30, $averageServiceTimeInSeconds);
             }
 
+            // Update the queue's average waiting time
+            $queue->update(['average_waiting_time' => $averageServiceTimeInSeconds]);
+
             // Find the customer currently being served (separate query — $queueUsers only has 'waiting')
             $currentQueueUser = QueueUser::where('queue_id', $queueId)
                 ->where('status', 'serving')

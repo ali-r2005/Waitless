@@ -74,6 +74,12 @@ class QueueManager extends Controller
 
             return response()->json([
                 'status' => 'success',
+                'queue' => [
+                    'name' => $queue->name,
+                    'is_active' => $queue->is_active,
+                    'is_paused' => $queue->is_paused,
+                    'average_waiting_time' => $queue->average_waiting_time,
+                ],
                 'data' => $customers,
                 'positions' => $positions
             ], Response::HTTP_OK);

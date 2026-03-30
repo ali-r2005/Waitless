@@ -20,6 +20,7 @@ class Queue extends Model
         'is_active',
         'is_paused',
         'start_time',
+        'average_waiting_time',
         'preferences'
     ];
 
