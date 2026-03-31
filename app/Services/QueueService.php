@@ -227,4 +227,16 @@ class QueueService
             Log::error('Failed to broadcast queue updates: ' . $e->getMessage());
         }
     }
+
+    public function checker(Queue $queue, bool $active, bool|null $pause = null, string $message ="Exception in queue state" ){
+        if ($pause === null) {
+            if ($queue->is_active != $active) {
+                throw new \Exception($message);
+            }
+        } else {
+            if ($queue->is_active != $active && $queue->is_paused != $pause) {
+                throw new \Exception($message);
+            }
+        }
+    }
 }

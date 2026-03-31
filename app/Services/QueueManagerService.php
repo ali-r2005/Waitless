@@ -57,7 +57,18 @@ class QueueManagerService
     }
     
     public function activateQueue(Queue $queue){
+        $this->queueService->checker($queue, false, true, 'Cannot activate queue: The queue is already active or paused.');
+        $customerCount = QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'waiting')
+            ->count();
+
+        if ($customerCount === 0) {
+            throw new \Exception('Cannot activate queue: No customers currently waiting.');
+        }
+
         $queue->is_active = true;
+        $queue->is_paused = false;
+        $queue->start_time = now();
         $queue->save();
         //send message to each customer in the queue 
         $this->queueService->normalizePositions($queue->id);
@@ -66,6 +77,7 @@ class QueueManagerService
     }
 
     public function callNextCustomer(Queue $queue){
+        $this->queueService->checker($queue, true, false, 'Cannot call next customer: The queue is not active or paused.');
         $nextQueueUser = QueueUser::where('queue_id', $queue->id)
             ->where('status', 'waiting')
             ->orderBy('position')
@@ -89,6 +101,7 @@ class QueueManagerService
 
     public function completeServing(Queue $queue){
         // Same reasoning: use the queue_user.id directly to update the exact pivot row
+        $this->queueService->checker($queue, true, false, 'Cannot complete serving: The queue is not active or paused.');
         $servingQueueUser = QueueUser::where('queue_id', $queue->id)
             ->where('status', 'serving')
             ->first();
@@ -108,6 +121,7 @@ class QueueManagerService
     }
 
     public function markCustomerAsLate(QueueUser $queueUser){
+        $this->queueService->checker($queueUser->queue, true, false, 'Cannot mark customer as late: The queue is not active.');
         $queueId = $queueUser->queue_id;
         $queueUser->update([
             'status' => 'late',
@@ -121,6 +135,7 @@ class QueueManagerService
     }
 
     public function reinsertCustomer(QueueUser $queueUser, $position){
+        $this->queueService->checker($queueUser->queue, true, false, 'Cannot reinsert customer: The queue is not active.');
         if ($queueUser->status !== 'late') {
             throw new \Exception('Only late customers can be reinserted');
         }
@@ -161,5 +176,51 @@ class QueueManagerService
 
         $this->queueService->normalizePositions($queueId);
         $this->queueService->broadcastQueueUpdates($queueId);
+    }
+
+    public function deactivateQueue(Queue $queue){
+        $this->queueService->checker($queue, true, null, 'Cannot deactivate queue: The queue is not active.');
+        $activeCount = QueueUser::where('queue_id', $queue->id)
+            ->whereIn('status', ['waiting', 'serving'])
+            ->count();
+
+        if ($activeCount > 0) {
+            throw new \Exception('Cannot deactivate queue: There are still customers waiting or being served.');
+        }
+
+        // Remove late customers
+        QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'late')
+            ->delete();
+
+        $queue->is_active = false;
+        $queue->is_paused = false;
+        $queue->start_time = null;
+        $queue->save();
+
+        $this->queueService->broadcastQueueUpdates($queue->id);
+    }
+
+    public function pauseQueue(Queue $queue){
+        $this->queueService->checker($queue, true, false, 'Cannot pause queue: The queue is not in a state that allows it to be paused.');
+        
+        $servingCustomerExists = QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'serving')
+            ->exists();
+
+        if ($servingCustomerExists) {
+            throw new \Exception('Cannot pause queue: A customer is currently being served.');
+        }
+
+        $queue->is_paused = true;
+        $queue->save();
+        $this->queueService->broadcastQueueUpdates($queue->id);
+    }
+
+    public function resumeQueue(Queue $queue){
+        $this->queueService->checker($queue, true, true, 'Cannot resume queue: The queue is not in a state that allows it to be resumed.');
+        $queue->is_paused = false;
+        $queue->save();
+        $this->queueService->broadcastQueueUpdates($queue->id);
     }
 }

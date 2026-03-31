@@ -42,6 +42,9 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
         Route::put('/queue-users/{queueUser}/move', [QueueManager::class, 'moveCustomer']);
         Route::put('/queue-users/{queueUser}/cancel', [QueueManager::class, 'cancelCustomer']);
         Route::put('/{queue}/activate', [QueueManager::class,'activateQueue']);
+        Route::put('/{queue}/deactivate', [QueueManager::class,'deactivateQueue']);
+        Route::put('/{queue}/pause', [QueueManager::class,'pauseQueue']);
+        Route::put('/{queue}/resume', [QueueManager::class,'resumeQueue']);
         Route::put('/{queue}/call-next', [QueueManager::class,'callNextCustomer']);
         Route::put('/{queue}/complete-serving', [QueueManager::class,'completeServing']);
        

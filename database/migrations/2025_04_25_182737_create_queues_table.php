@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name');
             $table->date('scheduled_date')->nullable();
             $table->boolean('is_active')->default(false);
-            $table->boolean('is_paused')->default(false);
+            $table->boolean('is_paused')->default(true);
             $table->time('start_time')->nullable();
             $table->json('preferences')->nullable();
             $table->timestamps();

@@ -103,7 +103,55 @@ class QueueManager extends Controller
             Log::error('Failed to activate queue: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to activate queue'
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function deactivateQueue(Queue $queue){
+        try {
+            $this->queueManagerService->deactivateQueue($queue);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Queue deactivated successfully'
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            Log::error('Failed to deactivate queue: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function pauseQueue(Queue $queue){
+        try {
+            $this->queueManagerService->pauseQueue($queue);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Queue paused successfully'
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            Log::error('Failed to pause queue: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function resumeQueue(Queue $queue){
+        try {
+            $this->queueManagerService->resumeQueue($queue);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Queue resumed successfully'
+            ], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            Log::error('Failed to resume queue: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -120,7 +168,7 @@ class QueueManager extends Controller
             Log::error('Failed to call next customer: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to call next customer'
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -136,7 +184,7 @@ class QueueManager extends Controller
             Log::error('Failed to complete serving: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to complete serving'
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -180,7 +228,7 @@ class QueueManager extends Controller
             Log::error('Failed to mark customer as late: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to mark customer as late'
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
