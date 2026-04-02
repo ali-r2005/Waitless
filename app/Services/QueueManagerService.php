@@ -116,7 +116,17 @@ class QueueManagerService
         ]);
 
         $this->queueService->normalizePositions($queue->id);
-        $this->queueService->broadcastQueueUpdates($queue->id);
+        
+        $waitingCount = QueueUser::where('queue_id', $queue->id)
+            ->where('status', 'waiting')
+            ->count();
+
+        if ($waitingCount === 0) {
+            $this->deactivateQueue($queue);
+        } else {
+            $this->queueService->broadcastQueueUpdates($queue->id);
+        }
+
         event(new SendActions($servingQueueUser->user_id, 'served', 'You have been served in the queue ' . $queue->name));
     }
 
@@ -194,7 +204,7 @@ class QueueManagerService
             ->delete();
 
         $queue->is_active = false;
-        $queue->is_paused = false;
+        $queue->is_paused = true;
         $queue->start_time = null;
         $queue->save();
 

@@ -37,5 +37,4 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
 Route::post('/refresh', [AuthenticatedSessionController::class, 'refresh'])
-    ->middleware('auth:api')
     ->name('refresh');

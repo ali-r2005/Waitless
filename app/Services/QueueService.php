@@ -229,12 +229,13 @@ class QueueService
     }
 
     public function checker(Queue $queue, bool $active, bool|null $pause = null, string $message ="Exception in queue state" ){
+        Log::info('queue active: '.$queue->is_active . ' queue paused: ' . $queue->is_paused . ' active: ' . $active . ' pause: ' . $pause);
         if ($pause === null) {
             if ($queue->is_active != $active) {
                 throw new \Exception($message);
             }
         } else {
-            if ($queue->is_active != $active && $queue->is_paused != $pause) {
+            if ($queue->is_active != $active || $queue->is_paused != $pause) {
                 throw new \Exception($message);
             }
         }
