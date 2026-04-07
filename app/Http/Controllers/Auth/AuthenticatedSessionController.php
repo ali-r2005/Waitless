@@ -30,12 +30,22 @@ class AuthenticatedSessionController extends Controller
                 ]);
             }
 
+            /** @var \App\Models\User $user */
             $user = $jwtGuard->user();
+
+            // Load business data to provide immediate context
+            $user->load('business');
 
             return response()->json([
                 'access_token' => $token,
                 'token_type' => 'Bearer',
                 'user' => $user,
+                'business' => $user->business ? [
+                    'id' => $user->business->id,
+                    'name' => $user->business->name,
+                    'industry' => $user->business->industry,
+                    'logo' => $user->business->logo
+                ] : null,
                 'status' => 'Login successful',
             ]);
         } catch (ValidationException $e) {
