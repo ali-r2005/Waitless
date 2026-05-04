@@ -92,7 +92,6 @@ class QueueController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'scheduled_date' => 'nullable|date',
-                'is_active' => 'boolean|nullable',
                 'start_time' => 'nullable|date_format:H:i',
                 'preferences' => 'nullable|json'
             ]);
@@ -242,7 +241,6 @@ class QueueController extends Controller
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:255',
                 'scheduled_date' => 'nullable|date',
-                'is_active' => 'boolean|nullable',
                 'start_time' => 'nullable|date_format:H:i',
                 'preferences' => 'nullable|json'
             ]);

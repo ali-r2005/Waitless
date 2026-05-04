@@ -104,6 +104,7 @@ class RegisteredUserController extends Controller
                         'status' => 'success',
                         'message' => 'Business owner registered successfully.',
                         'access_token' => $token,
+                        'role' => $user->role,
                         'token_type' => 'Bearer',
                         'user' => $user->fresh(['business']),
                         'business' => $business,
