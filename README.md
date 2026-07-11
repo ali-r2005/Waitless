@@ -1,120 +1,218 @@
-# Waitless - Queue Management System
+# Waitless — Backend API
 
-<p align="center">
-<img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo">
-</p>
+A queue management system API built with Laravel 12. Handles business/queue CRUD, customer flow, real-time broadcasting, and role-based access.
 
-## About Waitless
+## Tech Stack
 
-Waitless is a comprehensive queue management system designed to streamline customer flow in various service environments. Built with Laravel, it provides real-time queue management, customer tracking, and service optimization features.
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | Laravel 12.x |
+| **Language** | PHP ^8.2 |
+| **Database** | MySQL |
+| **Auth** | JWT (`tymon/jwt-auth`) |
+| **Real-time** | Laravel Reverb + Pusher |
+| **Queue Driver** | Database |
+| **Testing** | PHPUnit 11.x |
 
-### Key Features
+## Architecture
 
-- **Real-time Queue Management**
-  - Add, remove, and reorder customers in queues
-  - Track customer positions and waiting times
-  - Real-time updates for all queue participants
+```mermaid
+graph TD
+    subgraph Client
+        A[Next.js Frontend]
+    end
 
-- **Smart Queue Operations**
-  - Automatic position normalization
-  - Late customer handling
-  - Customer reinsertion capabilities
-  - Estimated waiting time calculations
+    subgraph "Laravel API"
+        B[Routes api.php]
+        C[Middleware<br/>auth:api / role]
+        D[Controllers]
+        E[Services<br/>QueueService / QueueManagerService]
+        F[Models<br/>User / Queue / Business / QueueUser]
+        G[Database MySQL]
+        H[Events<br/>SendUpdate / SendActions /<br/>StaffQueueUpdate / StaffActionsUpdate]
+        I[Pusher / Reverb]
+    end
 
-- **Role-Based Access Control**
-  - Business Owner access
-  - Branch Manager privileges
-  - Staff-level operations
+    A -->|HTTP / JWT| B
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    E --> F
+    F --> G
+    E -->|broadcast| H
+    H --> I
+    I -->|WebSocket| A
 
-- **Customer Notifications**
-  - Real-time position updates
-  - Service status notifications
-  - Estimated waiting time alerts
-
-## System Architecture
-
-### Core Components
-
-1. **Queue Management**
-   - Queue creation and activation
-   - Customer position tracking
-   - Service completion tracking
-
-2. **Customer Management**
-   - Customer addition and removal
-   - Position movement
-   - Late customer handling
-   - Reinsertion capabilities
-
-3. **Real-time Updates**
-   - WebSocket-based notifications
-   - Position updates
-   - Service status changes
-
-### Database Structure
-
-- **Queues**: Store queue information and status
-- **QueueUser**: Manages customer-queue relationships
-- **ServedCustomer**: Tracks completed services
-- **LatecomerQueue**: Handles late customer management
-
-## API Documentation
-
-### Queue Management Endpoints
-
-```
-POST   /api/queue-management/add-customer
-DELETE /api/queue-management/remove-customer
-GET    /api/queue-management/customers
-POST   /api/queue-management/activate
-POST   /api/queue-management/call-next
-POST   /api/queue-management/complete-serving
-PATCH  /api/queue-management/customers/{id}/move
-POST   /api/queue-management/customers/reinsert
-POST   /api/queue-management/customers/late
-GET    /api/queue-management/customers/late
+    style A fill:#1a1a2e,stroke:#e94560,color:#fff
+    style I fill:#16213e,stroke:#0f3460,color:#fff
+    style G fill:#0f3460,stroke:#e94560,color:#fff
 ```
 
-## Installation
+### Directory Layout
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   composer install
-   ```
-3. Configure environment:
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-4. Run migrations:
-   ```bash
-   php artisan migrate
-   ```
-5. Start the server:
-   ```bash
-   php artisan serve
-   ```
+```
+app/
+├── Events/           — Real-time broadcasting events (Pusher)
+├── Http/
+│   ├── Controllers/
+│   │   ├── Auth/              — Login, register, password reset, email verification
+│   │   ├── BusinessManagement/ — Business & staff CRUD
+│   │   └── QueueManagement/    — Queue CRUD, customer operations
+│   └── Middleware/             — CheckUserRole, EnsureEmailIsVerified
+├── Models/           — User, Business, Queue, QueueUser (pivot), ServedCustomer
+├── Notifications/    — NewMessageNotification
+├── Services/         — QueueService, QueueManagerService (business logic layer)
+```
 
-## Requirements
+## Role System
 
-- PHP >= 8.1
-- Laravel >= 9.x
-- MySQL >= 5.7
-- Redis (for real-time features)
+| Role | Permissions |
+|------|-------------|
+| `business_owner` | Full access — manage queues, staff, business settings |
+| `staff` | Manage queues, serve customers, no business/staff admin |
+| `customer` | View own queues, join/leave queues, self-cancel |
 
-## Security
+## Setup
 
-All API endpoints are protected by:
-- Laravel Sanctum authentication
-- Role-based access control
-- Input validation
-- Proper error handling
+### Prerequisites
 
-## Contributing
+- PHP ^8.2
+- Composer
+- MySQL
+- Pusher account (free tier works)
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+### Installation
 
-## License
+```bash
+# 1. Install dependencies
+composer install
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+# 2. Environment
+cp .env.example .env
+# Edit .env — set DB_DATABASE, DB_USERNAME, DB_PASSWORD, PUSHER_* credentials
+
+# 3. Generate keys
+php artisan key:generate
+php artisan jwt:secret
+
+# 4. Database
+php artisan migrate
+
+# 5. (Optional) Seed demo data
+php artisan db:seed
+
+# 6. Start development servers
+composer dev
+# Starts: php artisan serve (port 8000) + queue worker + Vite
+```
+
+### Environment Variables
+
+| Key | Description |
+|-----|-------------|
+| `DB_CONNECTION` | `mysql` |
+| `DB_DATABASE` | Database name |
+| `JWT_SECRET` | Token signing secret (`php artisan jwt:secret`) |
+| `BROADCAST_DRIVER` | `pusher` |
+| `PUSHER_APP_ID` | Pusher app ID |
+| `PUSHER_APP_KEY` | Pusher app key |
+| `PUSHER_APP_SECRET` | Pusher app secret |
+| `PUSHER_APP_CLUSTER` | Pusher cluster (e.g. `us2`) |
+| `QUEUE_CONNECTION` | `database` |
+| `CACHE_STORE` | `database` |
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `composer dev` | Run all dev servers concurrently (artisan serve + queue worker + Vite) |
+| `php artisan serve` | Start API on port 8000 |
+| `php artisan queue:listen --tries=1` | Process queued jobs |
+| `php artisan migrate` | Run database migrations |
+| `php artisan db:seed` | Seed demo data |
+| `php artisan test` | Run PHPUnit tests |
+
+## API Endpoints
+
+### Auth
+
+| Method | Endpoint | Middleware | Description |
+|--------|----------|-----------|-------------|
+| POST | `/api/register` | — | Register new user |
+| POST | `/api/login` | — | Login, returns JWT |
+| POST | `/api/logout` | `auth:api` | Invalidate token |
+| POST | `/api/refresh` | `auth:api` | Refresh JWT |
+| POST | `/api/forgot-password` | — | Send password reset link |
+| POST | `/api/reset-password` | — | Reset password |
+| POST | `/api/email/verification-notification` | `auth:api` | Resend verification |
+| GET | `/api/verify-email/{id}/{hash}` | — | Verify email |
+
+### User
+
+| Method | Endpoint | Middleware | Description |
+|--------|----------|-----------|-------------|
+| GET | `/api/user` | `auth:api` | Get authenticated user |
+
+### Business
+
+| Method | Endpoint | Middleware | Description |
+|--------|----------|-----------|-------------|
+| GET | `/api/business` | `auth:api`, `role:staff,business_owner` | Get user's business |
+
+### Staff Management (business_owner only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/staff` | List staff members |
+| GET | `/api/staff/{user}` | Show staff member |
+| POST | `/api/staff/{user}` | Add staff to business |
+| DELETE | `/api/staff/{user}` | Remove staff |
+| GET | `/api/users/search` | Search users by name |
+
+### Queues (staff, business_owner)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/queues` | List queues |
+| POST | `/api/queues` | Create queue |
+| GET | `/api/queues/{queue}` | Get queue details |
+| PUT | `/api/queues/{queue}` | Update queue |
+| DELETE | `/api/queues/{queue}` | Delete queue |
+| GET | `/api/queues/{queue}/users` | Get customers in queue |
+| POST | `/api/queues/{queue}/users/{user}` | Add customer to queue |
+| DELETE | `/api/queues/queue-users/{queueUser}` | Remove customer |
+| PUT | `/api/queues/queue-users/{queueUser}/mark-late` | Mark customer late |
+| PUT | `/api/queues/queue-users/{queueUser}/reinsert` | Reinsert late customer |
+| PUT | `/api/queues/queue-users/{queueUser}/move` | Move customer position |
+| PUT | `/api/queues/queue-users/{queueUser}/cancel` | Cancel customer |
+| PUT | `/api/queues/{queue}/activate` | Activate queue |
+| PUT | `/api/queues/{queue}/deactivate` | Deactivate queue |
+| PUT | `/api/queues/{queue}/pause` | Pause queue |
+| PUT | `/api/queues/{queue}/resume` | Resume queue |
+| PUT | `/api/queues/{queue}/call-next` | Call next customer |
+| PUT | `/api/queues/{queue}/complete-serving` | Complete serving customer |
+
+### Customer
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/customer/queues` | Get queues the customer is in |
+| GET | `/api/customer/queue-users/{queueUser}` | Get queue-customer detail |
+| DELETE | `/api/customer/queue-users/{queueUser}` | Self-remove from queue |
+| PUT | `/api/customer/queue-users/{queueUser}/cancel` | Self-cancel |
+
+### Broadcasting
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/broadcasting/auth` | Authenticate Pusher private channel |
+
+## Real-Time Events
+
+| Event | Channel | Trigger |
+|-------|---------|---------|
+| `SendActions` | `private-action.{user_id}` | Customer actions |
+| `SendUpdate` | `private-update.{receiver_id}.queue.{queue_id}` | Queue position updates |
+| `StaffActionsUpdate` | `private-staff.{user_id}.actions.{queue_id}` | Staff action notifications |
+| `StaffQueueUpdate` | `private-staff.queue.{queue_id}` | Queue state changes (queued) |

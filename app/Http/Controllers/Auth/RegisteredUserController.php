@@ -62,6 +62,7 @@ class RegisteredUserController extends Controller
                     'email' => $validatedData['email'],
                     'password' => Hash::make($validatedData['password']),
                     'phone' => $validatedData['phone'],
+                    'role' => $validatedData['role'] ?? 'customer',
                 ]);
 
                 // Handle business creation for business owners

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Illuminate\Validation\ValidationException;
 
@@ -49,11 +50,13 @@ class AuthenticatedSessionController extends Controller
                 'status' => 'Login successful',
             ]);
         } catch (ValidationException $e) {
+            Log::info('Validation failed: ' . json_encode($e->errors()));
             return response()->json([
-                'message' => 'Validation failed.',
+                'message' => $e->getMessage(),
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            Log::info('Login failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Login failed.',
                 'error' => $e->getMessage(),
