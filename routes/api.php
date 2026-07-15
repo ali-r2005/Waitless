@@ -51,6 +51,15 @@ Route::middleware(['auth:api', 'role:staff,business_owner'])->group(function () 
     });
 });
 
+// Dashboard routes
+Route::middleware(['auth:api', 'role:business_owner'])->prefix('dashboard')->group(function () {
+    Route::get('/owner', [\App\Http\Controllers\Dashboard\DashboardController::class, 'ownerOverview']);
+});
+
+Route::middleware(['auth:api', 'role:staff,business_owner'])->prefix('dashboard')->group(function () {
+    Route::get('/staff', [\App\Http\Controllers\Dashboard\DashboardController::class, 'staffOverview']);
+});
+
 // here it should be added that the user with role customer can remove themselves from the queue with the convetion that the user id is the id of the user that is logged in
 Route::middleware(['auth:api', 'role:customer'])->prefix('customer')->group(function () {
     Route::delete('/queue-users/{queueUser}', [QueueManager::class, 'removeCustomerFromQueue']);

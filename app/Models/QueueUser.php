@@ -14,6 +14,7 @@ class QueueUser extends Pivot
     protected $fillable = [
         'queue_id',
         'user_id',
+        'staff_id',
         'status',
         'ticket_number',
         'served_at',
@@ -22,6 +23,11 @@ class QueueUser extends Pivot
         'estimated_waiting_time',
         'start_serving_at',
     ];
+
+    public function staff()
+    {
+        return $this->belongsTo(User::class, 'staff_id');
+    }
 
     public function queue()
     {

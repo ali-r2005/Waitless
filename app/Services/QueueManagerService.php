@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Queue;
 use App\Models\QueueUser;
 use App\Models\User;
+use App\Models\ServedCustomer;
 use App\Events\SendActions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -92,7 +93,8 @@ class QueueManagerService
         // Update the exact queue_user row by its own primary key
         $nextQueueUser->update([
             'status' => 'serving',
-            'start_serving_at' => now()
+            'start_serving_at' => now(),
+            'staff_id' => Auth::id(),
         ]);
         event(new SendActions($nextQueueUser->user_id, 'call', 'Your turn is now in the queue to be served in ' . $queue->name));
 
@@ -100,7 +102,6 @@ class QueueManagerService
     }
 
     public function completeServing(Queue $queue){
-        // Same reasoning: use the queue_user.id directly to update the exact pivot row
         $this->queueService->checker($queue, true, false, 'Cannot complete serving: The queue is not active or paused.');
         $servingQueueUser = QueueUser::where('queue_id', $queue->id)
             ->where('status', 'serving')
@@ -110,13 +111,23 @@ class QueueManagerService
             throw new \Exception('No customer is currently being served');
         }
 
+        $waitingTime = $servingQueueUser->start_serving_at
+            ? now()->diffInSeconds($servingQueueUser->start_serving_at)
+            : 0;
+
         $servingQueueUser->update([
             'status' => 'served',
             'served_at' => now()
         ]);
 
+        ServedCustomer::create([
+            'queue_id' => $queue->id,
+            'user_id' => $servingQueueUser->user_id,
+            'waiting_time' => $waitingTime,
+        ]);
+
         $this->queueService->normalizePositions($queue->id);
-        
+
         $waitingCount = QueueUser::where('queue_id', $queue->id)
             ->where('status', 'waiting')
             ->count();
