@@ -6,14 +6,20 @@ use App\Http\Controllers\BusinessManagement\StaffController;
 use App\Http\Controllers\QueueManagement\QueueController;
 use App\Http\Controllers\QueueManagement\QueueManager; 
 use App\Http\Controllers\BusinessManagement\BusinessController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\QueueManagement\CustomerController;
 
 // Register the broadcasting routes with JWT authentication
 Broadcast::routes(['middleware' => ['auth:api']]);
 
-Route::middleware(['auth:api'])->get('/user', function (Request $request) {
-    return $request->user();
+Route::middleware(['auth:api'])->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+
+    Route::put('/profile', [ProfileController::class, 'update']);
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
 });
 
 // Routes accessible to branch managers
