@@ -22,13 +22,16 @@ Route::middleware(['auth:api'])->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
 });
 
-// Routes accessible to branch managers
+// Routes accessible to business owners
 Route::middleware(['auth:api', 'role:business_owner'])->group(function () {
-    // Limited staff management for branch managers
+    // Limited staff management
     Route::post('/staff/{user}', [StaffController::class, 'store']);
     Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
     Route::get('/staff', [StaffController::class, 'index']);
     Route::get('/staff/{user}', [StaffController::class, 'show']);
+
+    // Business settings
+    Route::put('/business', [BusinessController::class, 'update']);
 });
 
 // Queue routes - accessible based on role
